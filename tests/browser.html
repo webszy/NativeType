@@ -1,0 +1,118 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>NativeType local regression fixture</title>
+<style>
+body { font:16px system-ui; max-width:640px; margin:40px auto; background:white; color:#111; }
+[contenteditable] { border:1px solid #aaa; min-height:60px; padding:16px; margin-bottom:170px; white-space:pre-wrap; }
+button { padding:8px 16px; } pre { white-space:pre-wrap; }
+</style>
+<h1>NativeType local regression fixture</h1>
+<p>This fixture uses a fake Translator for deterministic tests. It does not verify Chrome’s real model or X’s React editor.</p>
+<button id="run">Run regression tests</button>
+<pre id="results">Ready</pre>
+<div contenteditable="true" role="textbox" data-testid="tweetTextarea_0" aria-label="New post"></div>
+<div role="dialog" aria-label="Reply dialog" style="transform:translate(0);background:rgb(20,20,20);color:white;overflow:hidden;margin-bottom:170px"><div data-testid="tweetTextarea_1RichTextInputContainer" style="margin-bottom:0"><div contenteditable="true" role="textbox" data-testid="tweetTextarea_1" aria-label="Reply" style="background:rgba(255,255,255,0);margin-bottom:0"></div></div><div role="toolbar" aria-label="Reply actions"><button>Reply</button></div></div>
+<script type="module">
+let calls = [], creates = 0, delay = 15;
+window.Translator = {
+  availability: async () => 'downloadable',
+  create: async ({ monitor }) => {
+    creates++;
+    monitor({ addEventListener: (_, listener) => listener({ loaded: .5 }) });
+    return { translate: async text => {
+      calls.push(text);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return text.includes('多行') ? 'First line\nSecond line' : `English: ${text.replace(/\p{Script=Han}/gu, 'word')}`;
+    }, destroy() {} };
+  },
+};
+window.defineContentScript = value => value;
+const { default: content } = await import('../entrypoints/content.ts');
+content.main({ addEventListener: (target, name, handler) => target.addEventListener(name, handler), onInvalidated() {} });
+const first = document.querySelector('[data-testid="tweetTextarea_0"]');
+const second = document.querySelector('[data-testid="tweetTextarea_1"]');
+// Minimal editor adapter: production X supplies its own Draft.js paste handler.
+let handledPastes = 0;
+let normalizedSelections = 0;
+for (const editor of [first, second]) editor.addEventListener('mouseup', () => {
+  const selection = getSelection();
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  if (!nodes.length || selection.toString() !== editor.innerText) return;
+  const normalized = document.createRange();
+  normalized.setStart(nodes[0], 0);
+  normalized.setEnd(nodes.at(-1), nodes.at(-1).textContent.length);
+  selection.removeAllRanges();
+  selection.addRange(normalized);
+  normalizedSelections++;
+});
+for (const editor of [first, second]) editor.addEventListener('paste', event => {
+  event.preventDefault();
+  handledPastes++;
+  document.execCommand('insertText', false, event.clipboardData.getData('text/plain'));
+});
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const root = () => document.querySelector('[data-nativetype]').shadowRoot;
+const shown = () => getComputedStyle(document.querySelector('[data-nativetype]')).display !== 'none';
+const preview = () => root().querySelector('p').textContent;
+const button = text => [...root().querySelectorAll('button')].find(el => el.textContent === text);
+const input = (el, text) => { el.focus(); el.textContent = text; el.dispatchEvent(new InputEvent('input', { bubbles: true })); };
+const results = document.querySelector('#results');
+const assert = (condition, description) => { if (!condition) throw new Error(description); results.textContent += `\nPASS ${description}`; };
+document.querySelector('#run').addEventListener('click', async () => {
+  results.textContent = 'Running';
+  try {
+    input(first, 'Hello'); await sleep(1100);
+    assert(calls.length === 0 && !shown(), 'English text does not translate');
+    input(first, '你好'); await sleep(400); input(first, '你好世界'); await sleep(650);
+    assert(calls.length === 0 && !shown(), 'Debounce resets on continued input');
+    await sleep(450);
+    assert(shown() && button('Enable translation'), 'First use requests activation');
+    button('Enable translation').click(); await sleep(80);
+    assert(calls.length === 1 && shown() && button('Replace') && creates === 1, 'Translation preview appears');
+    first.dispatchEvent(new InputEvent('input', { bubbles: true })); await sleep(1100);
+    assert(calls.length === 1, 'Unchanged input is deduplicated');
+    button('Retry').click(); await sleep(80);
+    assert(calls.length === 2 && creates === 1, 'Retry translates again and reuses instance');
+    const pastesBefore = handledPastes;
+    const english = preview(); button('Replace').click(); await sleep(150);
+    assert(first.innerText === english && handledPastes === pastesBefore + 1 && !shown(), 'Replace delegates text insertion to the editor paste handler');
+    assert(normalizedSelections > 0, 'Equivalent text-node selection boundaries are accepted');
+    document.execCommand('insertText', false, '!'); await sleep(80);
+    assert(first.innerText === english + '!', 'Caret remains editable after replacement');
+    input(first, '多行'); await sleep(1100); button('Replace').click(); await sleep(150);
+    assert(first.innerText === 'First line\nSecond line', 'Multiline replacement retains paragraph breaks');
+    input(first, ''); await sleep(1100);
+    const beforeIME = calls.length;
+    first.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+    input(first, '输入中'); await sleep(1100);
+    assert(calls.length === beforeIME, 'IME composition suppresses translation');
+    first.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true })); await sleep(1100);
+    assert(calls.length === beforeIME + 1 && shown(), 'IME commit schedules translation');
+    delay = 1400;
+    input(first, '旧'); await sleep(1100);
+    input(first, '新'); await sleep(1100); await sleep(400);
+    assert(!preview().includes('English:'), 'Stale completed result cannot overwrite current loading state');
+    await sleep(1000);
+    assert(shown() && preview() === 'English: word', 'Newest request wins');
+    delay = 15;
+    input(second, '回复'); await sleep(1100);
+    assert(document.querySelector('[data-nativetype]').parentElement.getAttribute('role') === 'dialog', 'Preview stays inside modal focus boundary');
+    const host = document.querySelector('[data-nativetype]');
+    const anchorRect = second.getBoundingClientRect(), previewRect = host.getBoundingClientRect();
+    assert(Math.abs(previewRect.left - anchorRect.left) < 1 && Math.abs(previewRect.top - anchorRect.bottom - 8) < 1, 'Transformed dialog does not offset fixed preview coordinates');
+    assert(getComputedStyle(root().querySelector('section')).backgroundColor === 'rgb(20, 20, 20)', 'Transparent white composer inherits the dark dialog theme');
+    const dialogRect = second.closest('[role="dialog"]').getBoundingClientRect();
+    assert(previewRect.right <= dialogRect.right && previewRect.bottom <= dialogRect.bottom, 'Preview remains inside the dialog clipping boundary');
+    assert(previewRect.bottom <= document.querySelector('[aria-label="Reply actions"]').getBoundingClientRect().top, 'Preview does not cover the editor toolbar');
+    const reservedSpace = second.parentElement.nextElementSibling;
+    button('Replace').click(); await sleep(150);
+    assert(first.innerText === '新' && second.innerText.startsWith('English:'), 'Only the active composer is replaced');
+    assert(!reservedSpace.isConnected && second.parentElement.style.marginBottom === '0px' && second.style.marginBottom === '0px', 'Hiding preview restores the original container spacing');
+    input(second, '删除测试'); await sleep(1100); second.remove(); await sleep(80);
+    assert(!shown(), 'Removing active composer cleans preview');
+    results.textContent += '\nDONE: All local regression checks passed.';
+  } catch (error) { results.textContent += `\nFAIL ${error.message}`; }
+});
+</script>
