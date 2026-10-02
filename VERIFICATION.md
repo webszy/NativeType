@@ -1,11 +1,11 @@
 # NativeType v0 verification
 
-**Status: v0’s text-only Chinese → English → Replace flow passed on real desktop Chrome and X.**
+**Status: v0’s text-only Chinese → English → Replace flow passed on real desktop Chrome and X with 0.0.1. The 0.0.2 cleanup passed the local regression fixture; it has not been retested on X.**
 
 ## Build and automated checks
 
 - `pnpm typecheck`: passed with WXT’s strict TypeScript configuration.
-- `pnpm build`: passed; Chrome Manifest V3, 13.49 kB total (264 B manifest + 13.23 kB content script).
+- `pnpm build`: passed for 0.0.2; Chrome Manifest V3, 13.56 kB total (264 B manifest + 13.29 kB content script).
 - `node --test tests/translator.test.mjs`: 6 tests passed. Covers absent APIs and unavailable pairs, explicit activation, download progress, instance reuse, shared initialization, cancellation, retryable initialization errors, translation errors/empty output and disposal during download.
 - `tests/browser.html`: all 22 regression checks passed in the local browser. Covers English filtering, debounce reset, activation, preview, deduplication, Retry and instance reuse, editor-handled paste replacement, equivalent text-node selection boundaries, continued editing, multiline replacement, IME composition/commit, stale results, modal containment, transformed-dialog coordinates, transparent-white theme detection, dialog clipping, toolbar separation, spacing restoration, active-composer isolation and removal cleanup.
 - The browser fixture uses a fake Translator and a minimal paste adapter. It verifies NativeType’s DOM/event orchestration, not Chrome’s model or X’s React editor; the real-X checks below provide that evidence.
@@ -14,7 +14,7 @@
 
 ## Real Chrome + X checks
 
-The latest NativeType 0.0.1 build was loaded unpacked from `.output/chrome-mv3` in desktop Google Chrome. Testing used the current X page explicitly authorized by the user as disposable. No post, reply or quote was published.
+The NativeType 0.0.1 build was loaded unpacked from `.output/chrome-mv3` in desktop Google Chrome. Testing used the X page explicitly authorized by the user as disposable. No post, reply or quote was published.
 
 | Composer | Chinese input | Chrome’s preview and replacement | Result |
 | --- | --- | --- | --- |

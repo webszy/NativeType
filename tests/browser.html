@@ -110,8 +110,8 @@ document.querySelector('#run').addEventListener('click', async () => {
     button('Replace').click(); await sleep(150);
     assert(first.innerText === '新' && second.innerText.startsWith('English:'), 'Only the active composer is replaced');
     assert(!reservedSpace.isConnected && second.parentElement.style.marginBottom === '0px' && second.style.marginBottom === '0px', 'Hiding preview restores the original container spacing');
-    input(second, '删除测试'); await sleep(1100); second.remove(); await sleep(80);
-    assert(!shown(), 'Removing active composer cleans preview');
+    input(second, '删除测试'); await sleep(1100); second.closest('[role="dialog"]').remove(); await sleep(80);
+    assert(!document.querySelector('[data-nativetype]') || !shown(), 'Removing active composer dialog cleans preview');
     results.textContent += '\nDONE: All local regression checks passed.';
   } catch (error) { results.textContent += `\nFAIL ${error.message}`; }
 });

@@ -55,6 +55,7 @@ export default defineContentScript({
 
     function deactivate() {
       cancel();
+      observer.disconnect();
       active = null;
       source = '';
       composing = false;
@@ -116,6 +117,12 @@ export default defineContentScript({
       if (active !== composer) {
         deactivate();
         active = composer;
+        observer.observe(composer, { childList: true, subtree: true, characterData: true });
+        // Watch only direct child changes along its ancestor path so removal of
+        // the composer or an enclosing dialog also releases the observer.
+        for (let parent = composer.parentElement; parent; parent = parent.parentElement) {
+          observer.observe(parent, { childList: true });
+        }
       }
       refresh();
     }
@@ -151,21 +158,21 @@ export default defineContentScript({
       composing = false;
       refresh();
     });
-    const observer = new MutationObserver(() => {
-      if (!active) return;
-      if (!active.isConnected) { deactivate(); return; }
-      if (readComposer(active) !== source) refresh();
-      overlay.reposition();
+    const observer = new MutationObserver(records => {
+      const composer = active;
+      if (!composer) return;
+      if (!composer.isConnected) { deactivate(); return; }
+      if (records.some(record => record.target === composer || composer.contains(record.target))) {
+        if (readComposer(composer) !== source) refresh();
+        overlay.reposition();
+      }
     });
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     ctx.onInvalidated(() => {
-      cancel();
-      observer.disconnect();
+      deactivate();
       overlay.destroy();
       translator.dispose();
     });
     const focused = findComposer(document.activeElement);
     if (focused) activate(focused);
-    console.debug('[NativeType] Content script loaded');
   },
 });

@@ -4,9 +4,16 @@ Write in your language. Publish in another.
 
 Experimental open-source Chrome extension for frictionless cross-language writing.
 
+**Status:** v0 / Experimental.
+
 Current v0: **Chinese → Chrome Built-in Translator → English → Replace**.
 
 Experimental build for X on desktop Chrome. New Post, Reply and Quote Post have been verified with Chrome’s real Translator and X’s current editor. Type Chinese in a post, reply, or quote-post composer, pause for one second, review the English preview, then choose **Replace**. **Retry** translates the current draft again. NativeType never clicks Post.
+
+## Requirements
+
+- Node.js 20.19+ and pnpm 11.24.0 for development.
+- Desktop Google Chrome 138+ for installation and the built-in Translator API.
 
 ## Development
 
@@ -17,7 +24,7 @@ pnpm dev
 
 WXT starts the development extension. Open X in that browser and sign in if needed. Production permissions below refer to `pnpm build`; WXT's development tooling may add development-only access.
 
-## Build
+## Installation
 
 ```sh
 pnpm typecheck
@@ -73,6 +80,10 @@ Open <http://127.0.0.1:5174/tests/browser.html> and click **Run regression tests
 
 See [VERIFICATION.md](VERIFICATION.md) for the executed checks, real-X observations and testing limits.
 
+## License
+
+[MIT License](LICENSE).
+
 ## Current limitations
 
 - Chrome Built-in Translator API compatibility; desktop Chrome only.
@@ -81,4 +92,4 @@ See [VERIFICATION.md](VERIFICATION.md) for the executed checks, real-X observati
 - Experimental contenteditable support: replacement depends on X's editor accepting a plain-text paste event. X may change its editor behavior. Formatting/mention entities can be flattened by whole-draft replacement; review before posting.
 - First model download can take time. Retry is deterministic machine translation, not AI rewriting.
 - Very tall/offscreen composers may require scrolling to reach a preview; it is kept outside the input text.
-- The current build passed real-X translation, Replace and continued-editing checks in New Post, Reply and Quote Post. Posting was intentionally not executed. A cold language-pack download and rich-text entities were not tested on X.
+- The 0.0.1 build passed real-X translation, Replace and continued-editing checks in New Post, Reply and Quote Post. The 0.0.2 cleanup passed the local browser regression fixture; it has not been retested on X. Posting was intentionally not executed. A cold language-pack download and rich-text entities were not tested on X.

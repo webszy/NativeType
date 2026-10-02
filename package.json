@@ -2,8 +2,12 @@
   "name": "nativetype",
   "description": "Write in your language. Publish in another.",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "packageManager": "pnpm@11.24.0",
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
