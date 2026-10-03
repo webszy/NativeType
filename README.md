@@ -57,10 +57,14 @@ Chrome 138 introduced the stable desktop API; use the latest Chrome. Stable supp
 
 ## Implementation
 
-- `entrypoints/content.ts`: focused composer tracking, one-second debounce, IME handling, stale-request protection, one-entry in-memory result reuse, and cleanup.
-- `lib/translator.ts`: Chrome API availability, activation, download progress, cancellation, and instance lifecycle.
-- `lib/editable.ts`: semantic X selector (`contenteditable`, `role`, `data-testid`), paragraph reading, native selection + a plain-text `paste` event. X's own paste handler updates the editor state and DOM; no direct `innerHTML` replacement, clipboard permission or private React state access.
-- `lib/overlay.ts`: small Shadow DOM preview with Retry/Replace, matching X's light/dark background, scroll/resize positioning, transformed-dialog coordinates and temporary space to keep X's controls unobstructed.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for module boundaries and the later extension points. Current behavior is unchanged.
+
+- `entrypoints/content.ts`: resolves the X platform, Chrome provider, and zh → en pair, then starts and stops the content script.
+- `core/`: focused composer tracking, one-second debounce, IME handling, stale-request protection, one-entry in-memory result reuse, retry, replace, and cleanup.
+- `translators/chrome.ts`: Chrome API availability, activation, download progress, cancellation, and instance lifecycle.
+- `platforms/x.ts`: semantic X selector (`contenteditable`, `role`, `data-testid`), paragraph reading, local editor observation, native selection + a plain-text `paste` event. X's own paste handler updates the editor state and DOM; no direct `innerHTML` replacement, clipboard permission or private React state access.
+- `languages/config.ts`: the zh → en pair and Han-script input check.
+- `ui/overlay.ts`: small Shadow DOM preview with Retry/Replace, matching X's light/dark background, scroll/resize positioning, transformed-dialog coordinates and temporary space to keep X's controls unobstructed. Placement comes from the X platform.
 
 ## Verification
 
@@ -69,6 +73,8 @@ node --test tests/translator.test.mjs
 pnpm typecheck
 pnpm build
 ```
+
+`tests/translator.test.mjs` loads the language, core, X platform, Chrome provider, and boundary checks. CI uses that same command.
 
 For the browser regression fixture:
 

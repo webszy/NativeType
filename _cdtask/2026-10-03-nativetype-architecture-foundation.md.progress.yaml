@@ -1,0 +1,53 @@
+progress_contract: cdf-execution-progress/v1
+task_path: /Volumes/Development/Workspace/NativeType/_cdtask/2026-10-03-nativetype-architecture-foundation.md
+task_contract: cdf-cdtask/v1
+task_document_sha256: b21757e96ffe9b492d313bfd618ddd4c3b431ce3d37c0723ddf5aa9402e6ea81
+scope_lock_sha256: d6a37e88af14692932ba70c830f8d849a552606b847e3ab4635bfc03b6cdc9b7
+approval_record_sha256: fffb68d9e63482db634bda27a6ad6bc85bd3a90c207f79675a1b4d15f01f2ff5
+overall_state: completed
+created_at: "2026-10-03T07:55:07+08:00"
+updated_at: "2026-10-03T08:16:00+08:00"
+completed_at: "2026-10-03T08:16:00+08:00"
+tasks:
+  - id: TASK-001
+    state: verified
+    started_at: "2026-10-03T07:55:07+08:00"
+    verified_at: "2026-10-03T08:14:19+08:00"
+    blocked_reason: null
+    verification_evidence:
+      - "platforms/x.ts holds the composer selector, text reading, ancestor childList observation, paste replacement, and preview placement."
+      - "tests/platforms/x.test.mjs passed. The browser fixture passed replace, dialog placement, quote recognition, and observer cleanup."
+  - id: TASK-002
+    state: verified
+    started_at: "2026-10-03T07:58:00+08:00"
+    verified_at: "2026-10-03T08:14:19+08:00"
+    blocked_reason: null
+    verification_evidence:
+      - "node --test tests/translator.test.mjs: Chrome availability, activation, progress, reuse, abort, errors, dispose, and language-pair forwarding passed."
+      - "languages/config.ts is the only zh to en pair and Han-script check. Registry tests passed."
+  - id: TASK-003
+    state: verified
+    started_at: "2026-10-03T08:00:00+08:00"
+    verified_at: "2026-10-03T08:14:19+08:00"
+    blocked_reason: null
+    verification_evidence:
+      - "pnpm typecheck passed. core and content.ts contain no X selector, Draft.js, or Translator.create usage."
+      - "Browser fixture passed debounce, IME, stale requests, replace coordination, inactive-editor isolation, dialog removal, and invalidation."
+  - id: TASK-004
+    state: verified
+    started_at: "2026-10-03T08:02:00+08:00"
+    verified_at: "2026-10-03T08:14:19+08:00"
+    blocked_reason: null
+    verification_evidence:
+      - "pnpm install --frozen-lockfile, pnpm typecheck, node --test tests/translator.test.mjs (19 passed), and pnpm build passed."
+      - "Production manifest is version 0.0.2, matches only https://x.com/*, and declares no permissions or host_permissions."
+      - "Headless Chrome 1280x1200 at http://127.0.0.1:5174/tests/browser.html: all local regression checks passed, including the added quote, inactive editor, and invalidation checks."
+      - "Real X New Post, Reply, Quote Post, IME, Replace-and-continue, and Post button state: Requires manual browser verification. A clean headless profile did not reach a signed-in composer. Not PASS. Nothing was posted."
+  - id: TASK-005
+    state: verified
+    started_at: "2026-10-03T08:04:00+08:00"
+    verified_at: "2026-10-03T08:14:19+08:00"
+    blocked_reason: null
+    verification_evidence:
+      - "ARCHITECTURE.md describes module duties and the static platform, provider, and language extension points."
+      - "README.md module paths match the new tree. lib/editable.ts, lib/overlay.ts, and lib/translator.ts are removed, and no source import of lib/ remains."

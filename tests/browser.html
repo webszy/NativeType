@@ -26,9 +26,24 @@ window.Translator = {
     }, destroy() {} };
   },
 };
-window.defineContentScript = value => value;
-const { default: content } = await import('../entrypoints/content.ts');
-content.main({ addEventListener: (target, name, handler) => target.addEventListener(name, handler), onInvalidated() {} });
+// This page is not x.com, so the content-script entry correctly declines it.
+// Start the same X adapter, provider, and language pair the entry uses there.
+const { startNativeType } = await import('../core/controller.ts');
+const { createOverlay } = await import('../ui/overlay.ts');
+const { defaultLanguagePair } = await import('../languages/config.ts');
+const { xPlatform } = await import('../platforms/x.ts');
+const { getTranslationProvider } = await import('../translators/registry.ts');
+const invalidation = new AbortController();
+startNativeType({
+  platform: xPlatform,
+  provider: getTranslationProvider('chrome'),
+  languagePair: defaultLanguagePair,
+  host: {
+    listen: (target, type, listener) => target.addEventListener(type, listener, { signal: invalidation.signal }),
+    onInvalidated(callback) { invalidation.signal.addEventListener('abort', callback); },
+  },
+});
+const invalidate = () => invalidation.abort();
 const first = document.querySelector('[data-testid="tweetTextarea_0"]');
 const second = document.querySelector('[data-testid="tweetTextarea_1"]');
 // Minimal editor adapter: production X supplies its own Draft.js paste handler.
@@ -60,9 +75,15 @@ const button = text => [...root().querySelectorAll('button')].find(el => el.text
 const input = (el, text) => { el.focus(); el.textContent = text; el.dispatchEvent(new InputEvent('input', { bubbles: true })); };
 const results = document.querySelector('#results');
 const assert = (condition, description) => { if (!condition) throw new Error(description); results.textContent += `\nPASS ${description}`; };
+window.__nativetypeFixtureReady = true;
 document.querySelector('#run').addEventListener('click', async () => {
   results.textContent = 'Running';
   try {
+    const languageOverlay = createOverlay(() => {}, () => {}, () => ({ container: document.body, reserveAfter: first }), { source: 'zh', target: 'ja' });
+    languageOverlay.show(first, { kind: 'translated', text: 'こんにちは' });
+    assert(languageOverlay.host.shadowRoot.querySelector('header').textContent === 'NativeType · Chinese → Japanese'
+      && languageOverlay.host.shadowRoot.querySelector('p').lang === 'ja', 'Overlay label and text language follow the supplied language pair');
+    languageOverlay.destroy();
     input(first, 'Hello'); await sleep(1100);
     assert(calls.length === 0 && !shown(), 'English text does not translate');
     input(first, '你好'); await sleep(400); input(first, '你好世界'); await sleep(650);
@@ -110,8 +131,28 @@ document.querySelector('#run').addEventListener('click', async () => {
     button('Replace').click(); await sleep(150);
     assert(first.innerText === '新' && second.innerText.startsWith('English:'), 'Only the active composer is replaced');
     assert(!reservedSpace.isConnected && second.parentElement.style.marginBottom === '0px' && second.style.marginBottom === '0px', 'Hiding preview restores the original container spacing');
+    const inactiveCalls = calls.length;
+    first.textContent = '后台中文';
+    first.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await sleep(1100);
+    assert(calls.length === inactiveCalls, 'Inactive composer edits do not start translation');
     input(second, '删除测试'); await sleep(1100); second.closest('[role="dialog"]').remove(); await sleep(80);
     assert(!document.querySelector('[data-nativetype]') || !shown(), 'Removing active composer dialog cleans preview');
+    const quote = document.createElement('div');
+    quote.contentEditable = 'true';
+    quote.setAttribute('role', 'textbox');
+    quote.setAttribute('data-testid', 'tweetTextarea_quote');
+    quote.setAttribute('aria-label', 'Quote');
+    document.body.append(quote);
+    const quoteCalls = calls.length;
+    input(quote, '引用'); await sleep(1100);
+    assert(calls.length === quoteCalls + 1 && shown() && preview().includes('word'), 'Quote composer is recognized by the X selector');
+    quote.remove(); await sleep(80);
+    assert(!shown(), 'Removing the active quote composer cleans the preview');
+    const beforeInvalidate = calls.length;
+    invalidate();
+    input(first, '失效后'); await sleep(1100);
+    assert(!document.querySelector('[data-nativetype]') && calls.length === beforeInvalidate, 'Invalidation destroys the preview and stops translation');
     results.textContent += '\nDONE: All local regression checks passed.';
   } catch (error) { results.textContent += `\nFAIL ${error.message}`; }
 });

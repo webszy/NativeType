@@ -1,8 +1,15 @@
+import { describeLanguagePair, type LanguagePair } from '../languages/config';
+
 export type PreviewState =
   | { kind: 'translating' | 'downloading' | 'error' | 'unsupported' | 'enable'; text: string }
   | { kind: 'translated'; text: string };
 
-export function createOverlay(onRetry: () => void, onReplace: () => void) {
+export interface OverlayLayout {
+  container: HTMLElement;
+  reserveAfter: HTMLElement;
+}
+
+export function createOverlay(onRetry: () => void, onReplace: () => void, layoutFor: (editor: HTMLElement) => OverlayLayout, languagePair: LanguagePair) {
   const host = document.createElement('div');
   host.dataset.nativetype = 'preview';
   host.setAttribute('translate', 'no');
@@ -26,7 +33,7 @@ export function createOverlay(onRetry: () => void, onReplace: () => void) {
   panel.setAttribute('role', 'region');
   panel.setAttribute('aria-label', 'NativeType translation');
   const label = document.createElement('header');
-  label.textContent = 'NativeType · Chinese → English';
+  label.textContent = `NativeType · ${describeLanguagePair(languagePair)}`;
   const message = document.createElement('p');
   message.setAttribute('role', 'status');
   message.setAttribute('aria-live', 'polite');
@@ -89,16 +96,9 @@ export function createOverlay(onRetry: () => void, onReplace: () => void) {
     host.style.left = '0px';
     host.style.top = '0px';
     const panelHeight = host.getBoundingClientRect().height;
-    // Keep the card's space outside Draft's shared-height nodes.
-    let branch = anchor.closest<HTMLElement>('[data-testid$="RichTextInputContainer"]') ?? anchor;
-    const boundary = anchor.closest('[role="dialog"]') ?? document.body;
-    while (branch.parentElement && branch.parentElement !== boundary) {
-      const layout = getComputedStyle(branch.parentElement);
-      if (layout.display === 'flex' && layout.flexDirection === 'column') break;
-      branch = branch.parentElement;
-    }
+    const reserveAfter = layoutFor(anchor).reserveAfter;
     spacer.style.height = `${panelHeight + 16}px`;
-    if (spacer.previousElementSibling !== branch) branch.after(spacer);
+    if (spacer.previousElementSibling !== reserveAfter) reserveAfter.after(spacer);
     rect = anchor.getBoundingClientRect();
     const origin = host.getBoundingClientRect();
     const left = Math.max(8, Math.min(rect.left, width - origin.width - 8));
@@ -123,11 +123,11 @@ export function createOverlay(onRetry: () => void, onReplace: () => void) {
         observer.observe(anchor);
       }
       // X traps focus and hides accessibility nodes outside its composer dialog.
-      const container = composer.closest('[role="dialog"]') ?? document.body;
+      const container = layoutFor(composer).container;
       if (host.parentElement !== container) container.append(host);
       visible = true;
       message.textContent = state.text;
-      message.lang = state.kind === 'translated' ? 'en' : '';
+      message.lang = state.kind === 'translated' ? languagePair.target : '';
       retry.textContent = state.kind === 'enable' ? 'Enable translation' : 'Retry';
       retry.hidden = !['translated', 'error', 'enable'].includes(state.kind);
       replace.hidden = state.kind !== 'translated';
