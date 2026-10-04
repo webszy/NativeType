@@ -49,14 +49,10 @@ async function replaceText(editor: HTMLElement, source: string, translation: str
 }
 
 function previewLayout(editor: HTMLElement): PreviewLayout {
-  let reserveAfter = editor.closest<HTMLElement>('[data-testid$="RichTextInputContainer"]') ?? editor;
-  const container = editor.closest<HTMLElement>('[role="dialog"]') ?? document.body;
-  while (reserveAfter.parentElement && reserveAfter.parentElement !== container) {
-    const layout = getComputedStyle(reserveAfter.parentElement);
-    if (layout.display === 'flex' && layout.flexDirection === 'column') break;
-    reserveAfter = reserveAfter.parentElement;
-  }
-  return { container, reserveAfter };
+  return {
+    container: editor.closest<HTMLElement>('[role="dialog"]') ?? document.body,
+    heightTarget: editor.closest<HTMLElement>('[data-testid$="RichTextInputContainer"]') ?? editor,
+  };
 }
 
 function observe(editor: HTMLElement, listener: PlatformEditorListener): () => void {

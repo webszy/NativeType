@@ -2,7 +2,7 @@
   "name": "nativetype",
   "description": "Write in your language. Publish in another.",
   "private": true,
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "module",
   "engines": {
     "node": ">=20.19"
@@ -11,15 +11,21 @@
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
+    "screenshot:store": "node --import tsx scripts/capture-store-screenshots.ts",
     "zip": "wxt zip",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/ws": "^8.18.2",
+    "playwright": "^1.63.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^8.1.5",
     "web-ext": "^10.5.0",
+    "ws": "^8.22.0",
     "wxt": "^0.21.3"
   }
 }

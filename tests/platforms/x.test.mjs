@@ -17,7 +17,6 @@ test('registry resolves only X on x.com', () => {
 test('X keeps the verified selector, paste replacement, and local observer', () => {
   assert.match(source, /\[contenteditable="true"\]\[role="textbox"\]\[data-testid\^="tweetTextarea_"\]/);
   assert.match(source, /\[data-block="true"\]/);
-  assert.match(source, /\[data-testid\$="RichTextInputContainer"\]/);
   assert.match(source, /\[role="dialog"\]/);
   assert.match(source, /setTimeout\(resolve, 0\)/);
   assert.match(source, /setTimeout\(resolve, 50\)/);

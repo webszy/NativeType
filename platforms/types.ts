@@ -5,7 +5,7 @@ export interface PlatformEditorListener {
 
 export interface PreviewLayout {
   container: HTMLElement;
-  reserveAfter: HTMLElement;
+  heightTarget?: HTMLElement;
 }
 
 export interface PlatformAdapter {

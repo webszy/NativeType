@@ -56,7 +56,7 @@ test('registries stay static and replaced lib files are gone', async () => {
 test('manifest inputs keep the current host and add no permissions', async () => {
   const config = await readFile(path.join(root, 'wxt.config.ts'), 'utf8');
   const manifest = await readFile(path.join(root, 'package.json'), 'utf8');
-  assert.match(config, /version: '0\.0\.2'/);
+  assert.doesNotMatch(config, /\bversion\s*:/); // WXT inherits package.json.
   assert.doesNotMatch(config, /permissions|host_permissions/);
-  assert.match(manifest, /"version": "0\.0\.2"/);
+  assert.match(JSON.parse(manifest).version, /^\d+\.\d+\.\d+$/);
 });

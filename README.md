@@ -31,7 +31,51 @@ pnpm typecheck
 pnpm build
 ```
 
-In Chrome, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `.output/chrome-mv3` inside this repository. Reload X after loading or updating the extension. `pnpm zip` optionally creates a distributable ZIP; unpack it before using Load unpacked.
+In Chrome, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `dist/chrome-mv3` inside this repository. Reload X after loading or updating the extension. `pnpm zip` optionally creates a distributable ZIP; unpack it before using Load unpacked.
+
+## Chrome Web Store screenshots
+
+With current desktop Google Chrome installed, run:
+
+```sh
+pnpm install
+pnpm screenshot:store
+```
+
+The script builds the production extension into `dist/chrome-mv3`, loads that unpacked Manifest V3 build into a separate headed Chrome window, and opens X's New Post composer. **On the first run, sign in to X manually in that window**, including any authentication challenges. The script waits up to ten minutes and resumes automatically after login. Keep the window open and let the script control the composer once login completes. Future runs reuse that login and Chrome's downloaded language models. Your everyday Chrome profile is not used.
+
+The persistent profile lives **outside the repository** in the OS cache, under `NativeType/store-screenshots/<project-id>/chrome`: `~/Library/Caches/` on macOS, `$XDG_CACHE_HOME` or `~/.cache/` on Linux, and `%LOCALAPPDATA%` on Windows. The terminal prints its exact location. Treat it as private authentication data; never commit or copy it into store assets. No cookies, passwords, tokens, storage-state files, traces or HAR recordings are exported. An optional in-repository profile is restricted to the gitignored `.cache/store-screenshots/` directory.
+
+The three live browser-page captures are saved to `store-assets/screenshots/`:
+
+| File | Real NativeType / X state |
+| --- | --- |
+| `01-write.png` | Chinese draft; NativeType's own Close button dismisses the initial preview. |
+| `02-preview.png` | Same Chinese draft with the English translation preview and Replace button visible. |
+| `03-replace.png` | NativeType's Replace button puts the English text in X; the preview closes. |
+
+Each PNG is **exactly 1280 × 800 pixels**, with a 1280 × 800 viewport and CSS pixel capture at device scale 1. The script verifies the PNG dimensions, composer text and preview state, and waits for fonts, stable layout and finite animations. It captures the actual X page and production extension UI; browser toolbars are outside the viewport. X's account, theme and live background content belong to the persistent session, so use the same account and appearance for consistent future captures.
+
+Demo input: `今天终于把 NativeType 的第一个版本做完了。` Expected preview and replacement: `Finally finished the first version of NativeType today.` This is the accepted real Chrome translation. The script uses ordinary editor input, automatically clicks NativeType's **Enable translation** if Chrome needs to download its language pack, and never publishes a post. A different real Chrome translation fails the capture instead of substituting the expected text. Login, translation or replacement failures preserve the previous screenshot set. Existing unrelated drafts are not overwritten, and the script clears its own known demo text before closing.
+
+Chrome's model/version can produce different wording. To approve another known real result, pass its exact text with `--expected-translation`; this changes the validation only and still requires Chrome to produce that text.
+
+Optional settings:
+
+```sh
+pnpm screenshot:store --help
+pnpm screenshot:store --headless # After the one-time headed login
+pnpm screenshot:store --login-timeout 1200000 --translation-timeout 1200000
+pnpm screenshot:store --profile .cache/store-screenshots/chrome-profile
+pnpm screenshot:store --executable /path/to/a/current/chrome
+pnpm screenshot:store --connect # Reuse your running Chrome and its X login
+```
+
+System Chrome is recommended because NativeType needs Chrome's real built-in Translator. Current Chrome loads the extension through `Extensions.loadUnpacked` with `--enable-unsafe-extension-debugging`; the removed branded-Chrome `--load-extension` switch is not needed. If you prefer Playwright Chromium, install it with `pnpm exec playwright install chromium` and run `pnpm screenshot:store --browser chromium`. That browser has a separate persistent profile and may lack Chrome's translation API/models; the workflow reports that limitation instead of mocking translation. Close any other capture process using the same profile before starting another run.
+
+To reuse your everyday Chrome (144+) without another X login, open `chrome://inspect/#remote-debugging` in that browser and enable **Allow remote debugging for this browser instance**. Then run `pnpm screenshot:store --connect` and approve Chrome's connection dialog. Chrome's own consent allows a local debugging client to control that session; the capture script scopes Playwright to a new tab, clears only its own demo, closes that tab, and disconnects while leaving the existing browser and tabs open. Existing tabs are not paused or initialized by Playwright. It reads only `DevToolsActivePort` to discover the local WebSocket endpoint; it does not copy or export the profile. Chrome's consent-based server may return 404 for `/json/version`, so `--connect` uses the WebSocket endpoint directly. Use `--chrome-data-dir PATH` for a non-default Chrome user-data root, or `--cdp URL` for another explicitly enabled local debugging endpoint.
+
+An existing Chrome may require manually loading the fresh `dist/chrome-mv3` build in `chrome://extensions`, because extension installation through CDP normally requires a launch flag. The script checks the enabled unpacked extension's build path when it cannot load it automatically. If NativeType was installed from this project's legacy `.output/chrome-mv3` path, the script copies the production `dist/chrome-mv3` build there and reloads that same installation, preserving its extension ID. Keep only one enabled NativeType installation in that browser. The default command continues to use its dedicated persistent profile. `--connect` cannot be combined with `--headless`, `--profile`, or `--executable`.
 
 ## One-minute manual test
 
@@ -57,14 +101,14 @@ Chrome 138 introduced the stable desktop API; use the latest Chrome. Stable supp
 
 ## Implementation
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for module boundaries and the later extension points. Current behavior is unchanged.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for module boundaries and the later extension points.
 
 - `entrypoints/content.ts`: resolves the X platform, Chrome provider, and zh → en pair, then starts and stops the content script.
 - `core/`: focused composer tracking, one-second debounce, IME handling, stale-request protection, one-entry in-memory result reuse, retry, replace, and cleanup.
 - `translators/chrome.ts`: Chrome API availability, activation, download progress, cancellation, and instance lifecycle.
 - `platforms/x.ts`: semantic X selector (`contenteditable`, `role`, `data-testid`), paragraph reading, local editor observation, native selection + a plain-text `paste` event. X's own paste handler updates the editor state and DOM; no direct `innerHTML` replacement, clipboard permission or private React state access.
 - `languages/config.ts`: the zh → en pair and Han-script input check.
-- `ui/overlay.ts`: small Shadow DOM preview with Retry/Replace, matching X's light/dark background, scroll/resize positioning, transformed-dialog coordinates and temporary space to keep X's controls unobstructed. Placement comes from the X platform.
+- `ui/overlay.ts`: Shadow DOM preview with Retry/Replace and Close, matching X's light/dark background. A top-layer popover stays 4px below the last rendered text line, including wrapping and line breaks, with a two-character indent. It follows edits immediately while the next translation is pending and updates on scroll/resize. The X adapter supplies an input container whose minimum height temporarily expands to fit the text and preview; hiding, closing, replacing or switching composers restores its original height style.
 
 ## Verification
 

@@ -50,21 +50,30 @@ export function startNativeType(options: {
       session.preview = { kind: 'error', text: platform.replacementErrorMessage };
       overlay.show(editor, session.preview);
     }
-  }, editor => platform.previewLayout(editor), languagePair);
+  }, editor => platform.previewLayout(editor), languagePair, () => {
+    cancelSession(session);
+  });
 
   function refresh() {
     if (!session.editor || session.replacing) return;
     const text = platform.getText(session.editor);
     if (text === session.sourceText && (session.preview || session.timer)) return;
+    const keepVisible = overlay.isVisible();
     cancelSession(session);
     session.sourceText = text;
     session.preview = undefined;
-    overlay.hide();
-    if (session.composing || !text.trim() || !isTranslatableInput(text, languagePair)) return;
+    if (session.composing || !text.trim() || !isTranslatableInput(text, languagePair)) {
+      overlay.hide();
+      return;
+    }
     if (session.cached?.source === text) {
       session.preview = { kind: 'translated', text: session.cached.translation };
       overlay.show(session.editor, session.preview);
       return;
+    }
+    if (keepVisible) {
+      session.preview = { kind: 'translating', text: 'Translating…' };
+      overlay.show(session.editor, session.preview);
     }
     session.timer = setTimeout(() => {
       session.timer = undefined;

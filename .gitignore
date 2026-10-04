@@ -9,11 +9,17 @@ lerna-debug.log*
 
 node_modules
 .output
+dist/
 stats.html
 stats-*.json
 .wxt
 __cd-task/
 web-ext.config.ts
+
+# Optional in-repository override for the private store screenshot browser cache.
+# The default persistent profile lives outside the repository in the OS cache.
+/.cache/store-screenshots/
+/store-assets/screenshots/.capture-*/
 
 # Editor directories and files
 .vscode/*
