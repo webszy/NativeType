@@ -1,10 +1,27 @@
 {
   "name": "@nativetype/api",
-  "description": "Future Cloudflare Workers API for NativeType. Not implemented.",
+  "description": "Cloudflare Worker for NativeType anonymous usage analytics.",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "vitest run && node --test test/config.test.mjs",
+    "typecheck": "wrangler types --strict-vars false --include-runtime false --check && tsc --noEmit",
+    "types": "wrangler types --strict-vars false --include-runtime false",
+    "build": "wrangler deploy --dry-run",
+    "deploy": "node scripts/require-database-id.mjs wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply nativetype-analytics --local",
+    "db:migrate:remote": "node scripts/require-database-id.mjs wrangler d1 migrations apply nativetype-analytics --remote"
+  },
   "dependencies": {
     "@nativetype/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.7",
+    "@cloudflare/workers-types": "5.20261019.1",
+    "typescript": "^5.9.3",
+    "vitest": "4.1.12",
+    "wrangler": "4.152.0"
   }
 }

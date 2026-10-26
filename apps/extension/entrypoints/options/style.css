@@ -75,6 +75,36 @@ select:focus-visible, .switch input:focus-visible + .track {
 
 .direction { margin: 12px 0 0; font-size: 13px; }
 
+.context-group { border-top: 1px solid var(--line); }
+.context-group:last-child { border-bottom: 1px solid var(--line); }
+
+.context-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 4px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.context-summary::-webkit-details-marker { display: none; }
+.context-summary:hover { color: var(--accent); }
+.context-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.context-chevron {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+}
+
+.context-group[open] > .context-summary .context-chevron { transform: rotate(45deg); }
+.context-options { padding: 0 0 16px 26px; }
+
 .context {
   display: flex;
   align-items: center;
@@ -137,7 +167,6 @@ footer {
   gap: 12px;
   margin-top: 36px;
   padding-top: 16px;
-  border-top: 1px solid var(--line);
   font-size: 13px;
 }
 

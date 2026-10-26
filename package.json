@@ -2,7 +2,7 @@
   "name": "nativetype",
   "description": "Write in your language. Publish in another.",
   "private": true,
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "module",
   "engines": {
     "node": ">=20.19"
@@ -11,10 +11,16 @@
   "scripts": {
     "dev": "pnpm dev:extension",
     "dev:extension": "pnpm --filter @nativetype/extension dev",
+    "dev:api": "pnpm --filter @nativetype/api dev",
     "build": "pnpm build:extension",
     "build:extension": "pnpm --filter @nativetype/extension build",
+    "build:api": "pnpm --filter @nativetype/api build",
     "test:extension": "pnpm --filter @nativetype/extension test",
-    "typecheck": "pnpm --filter @nativetype/extension --filter @nativetype/contracts typecheck",
+    "test:api": "pnpm --filter @nativetype/api test",
+    "typecheck": "pnpm --filter @nativetype/extension --filter @nativetype/contracts --filter @nativetype/api typecheck",
+    "db:migrate:api:local": "pnpm --filter @nativetype/api db:migrate:local",
+    "db:migrate:api:remote": "pnpm --filter @nativetype/api db:migrate:remote",
+    "deploy:api": "pnpm --filter @nativetype/api deploy",
     "zip": "pnpm --filter @nativetype/extension zip",
     "compile": "pnpm --filter @nativetype/extension compile",
     "screenshot:store": "pnpm --filter @nativetype/extension screenshot:store"

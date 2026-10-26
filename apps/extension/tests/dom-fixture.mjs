@@ -101,9 +101,11 @@ export function installDOM(t) {
   }
 
   document = {
+    visibilityState: 'visible',
     documentElement: new Element('html'),
     body: new Element('body'),
     createElement: tag => new Element(tag),
+    createElementNS: (_namespace, tag) => new Element(tag),
     createTreeWalker: () => ({ nextNode: () => null }),
     createRange: () => ({}),
   };

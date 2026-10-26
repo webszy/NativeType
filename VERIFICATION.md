@@ -1,8 +1,8 @@
-# NativeType v0 verification
+# NativeType verification
 
-**Status: v0’s text-only Chinese → English → Replace flow passed on real desktop Chrome and X with 0.0.1. The 0.0.2 cleanup passed the local regression fixture; it has not been retested on X.**
+**Current status: quote switches, language changes, and Replace passed on real X after reloading the fixed 0.0.4 extension. Settings recovery also has regression coverage for missed notifications and asynchronous races. The original intermittent notification failure has not been reproduced consistently.**
 
-Phase 1 language settings and X context switches are recorded at the end of this file. They were not retested on live X.
+Earlier version results below are historical. The latest automated checks pass 75 Node tests, 57 local browser checks, and extension TypeScript; the production 0.0.4 build and zip are ready.
 
 ## Build and automated checks
 
@@ -94,3 +94,42 @@ The extension now lives in `apps/extension`. `apps/api` and `packages/contracts`
 - `pnpm test:extension`: 55 passed, including 16 new Node regression tests. The new DOM fixture uses fixed geometry and simulated mutation delivery to test control flow; it does not validate visual layout or X's editor internals.
 - `pnpm typecheck` and `pnpm build`: passed. The production bundle is 65.33 kB; version and manifest permissions are unchanged.
 - Chrome was not launched for this review or these fixes. The browser fixture, live X, and Chrome's real models were not rerun.
+
+## Live-X follow-up fixes (0.0.4, 2026-10-26)
+
+The first real Chrome/X settings run passed language changes, New posts and Replies switches, inline replies, replacement, persistence, and two Settings tabs syncing in both directions. It also exposed two failures:
+
+- Quote drafts followed New posts instead of Quote posts. Read-only inspection of the real quote composer confirmed that X now uses an `attachments` container with an attached post button, `User-Name`, and a `time[datetime]`. There is no `quoteTweet` marker or status link. The adapter now recognizes that structure as well as the older marker, without relying on translated UI copy. Quotes in menus, another composer, or a reply's parent post do not change the active context. Attachment hydration and removal are observed.
+- One existing X tab retained an old target language and ignored a context switch until X was refreshed. A stable cause was not established. The controller now re-reads persisted settings on visible-tab return, window focus, pageshow, and entering a composer. It hides the old preview and cancels pending translation/paste while reading, preserves active IME composition, and then resumes the focused editor. New storage events take precedence over an older read; another resume during a slow read queues a fresh read. Invalidation cannot restart a disposed controller.
+
+Validation:
+
+- `node --test tests/translator.test.mjs` in `apps/extension`: 71 passed. The 16 added tests cover the observed quote structure, independent context switches, missed settings notifications, asynchronous read races, stale replacement, disposal, and IME composition during resync. Existing controller context/removal tests now use the observed quote structure too.
+- `./node_modules/.bin/tsc --noEmit` in `apps/extension`: passed.
+- `tests/browser.html`: all 57 checks passed in the in-app browser, including editor-handled paste, IME, stale requests, modal containment, context switches, and language changes. This fixture uses a fake Translator and its own paste handler; it does not provide evidence about Chrome's model or X's React editor.
+- `./node_modules/.bin/wxt zip` in `apps/extension`: passed; production build 66.11 kB, zip 37.98 kB. Manifest remains version 0.0.4 with only the `storage` permission.
+
+After the user manually reloaded the extension, the following passed in the nianchen Chrome profile on real X, using ordinary clicks and typing, the real Language Detector/Translator, and no storage injection:
+
+| Check | Observed result |
+| --- | --- |
+| Only Quote posts on | The quote draft translated English → Chinese while New posts and Replies were off. |
+| Only New posts on | Disabling Quote posts hid the same preview. Further input left the draft unchanged and did not translate. |
+| Re-enable Quote posts | The same edited draft translated again without reloading X. |
+| Change target while X is in the background | Returning to X showed English → Japanese and an actual Japanese translation, with no stale Chinese result. |
+| Change trigger to Chinese | The unchanged English draft stopped translating. Returning to English restored the Japanese preview. |
+| Replace in the quote composer | X accepted the Japanese text, hid the preview, and kept the quoted-post attachment intact. |
+| Cleanup | Close → Discard removed the temporary draft. Settings were restored to English → Chinese with all contexts on and Saved. |
+
+The original intermittent notification anomaly was not forced or reproduced reliably in this live retest. Tests simulate missed notifications and slow reads to verify recovery; live checks verify normal Settings changes across tab switches. A cold model download, true IME candidate interaction, and publishing were not part of this retest.
+
+The original E2E report, local-browser output, and follow-up screenshots are retained in `apps/extension/.output/e2e-2026-10-26/`. Screenshots 17–20 show the fixed quote-only preview, disabled quote, updated Japanese preview, and restored settings. The original report's failures remain historical evidence. The production content script SHA-256 is `249dff1a9b1d01f39b996aa36ce351c8200d9d370d27b2760e2db7256ba43f69`.
+
+## Settings controls and preview shortcut (0.0.4, 2026-10-26)
+
+- The three X switches now live in an initially open `config for X` disclosure. The platform metadata, labels, defaults, UI rendering, and stored-context validation use `settings/config.ts`. Clicking the header, Enter, and Space were checked in the local Settings page; folding preserves saved switch values.
+- A gear beside the preview's target language opens the extension's existing options page through a content-to-background message. Updating the language label preserves the button. Pointer clicks keep the editor caret, and returning with keyboard focus in the preview resumes the same composer. Open failures preserve the current translation and draft.
+- The background replies through `sendResponse` and `return true`, following the [Chrome messaging documentation](https://developer.chrome.com/docs/extensions/develop/concepts/messaging), to support the declared Chrome minimum rather than require Promise-returning message listeners.
+- 75 Node tests passed, including message routing, failed opens, preserved drafts, language updates, and returning from Settings. Extension TypeScript passed. Production build/zip passed: 70.03 kB build, 39.27 kB zip, version 0.0.4, permission still limited to `storage`.
+- A local click opened the Settings fixture and kept the composer text. A fresh independent run passed all 57 browser regression checks. An earlier run failed the fixed-delay IME-commit assertion; this was not reproduced in the clean run. Local browser checks use the fake Translator and a fixture navigation handler; the new gear has not been retested in the installed Chrome extension on X.
+- Header screenshot and browser results: `apps/extension/.output/preview-settings-2026-10-26/`. The earlier content-script hash above identifies the live-X follow-up build before these Settings UI additions.

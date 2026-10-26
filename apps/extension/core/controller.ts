@@ -7,8 +7,9 @@ import { createOverlay, type PreviewState } from '../ui/overlay';
 import { beginRequest, cancelSession, createSession, isCurrentRequest } from './session';
 
 export interface ExtensionHost {
-  listen(target: Document, type: string, listener: (event: Event) => void): void;
+  listen(target: Document | Window, type: string, listener: (event: Event) => void): void;
   onInvalidated(listener: () => void): void;
+  openSettings?(): void | Promise<void>;
 }
 
 export function startNativeType(options: {
@@ -28,6 +29,8 @@ export function startNativeType(options: {
     },
   };
   const session = createSession();
+  let disposed = false;
+  let syncingSettings = false;
   session.languagePair = {
     source: settings.translation.sourceLanguage,
     target: settings.translation.targetLanguage,
@@ -35,7 +38,7 @@ export function startNativeType(options: {
   const overlay = createOverlay(() => {
     if (!session.replacing) void translate(true);
   }, async () => {
-    if (!session.editor || session.preview?.kind !== 'translated' || session.composing || session.replacing) return;
+    if (syncingSettings || !session.editor || session.preview?.kind !== 'translated' || session.composing || session.replacing) return;
     if (!contextEnabled(session.editor)) {
       deactivate();
       return;
@@ -73,7 +76,7 @@ export function startNativeType(options: {
     }
   }, editor => platform.previewLayout(editor), currentPair(), () => {
     cancelSession(session);
-  });
+  }, host.openSettings);
 
   function currentPair(): LanguagePair {
     return {
@@ -83,14 +86,14 @@ export function startNativeType(options: {
   }
 
   function contextEnabled(editor: HTMLElement): boolean {
-    if (platform.id !== 'x') return false;
+    if (disposed || platform.id !== 'x') return false;
     const context = platform.writingContext(editor);
     if (context === 'unknown') return false;
     return settings.contexts.x[context];
   }
 
   function refresh() {
-    if (!session.editor) return;
+    if (syncingSettings || !session.editor) return;
     if (!contextEnabled(session.editor)) {
       deactivate();
       return;
@@ -125,7 +128,7 @@ export function startNativeType(options: {
   }
 
   async function translate(activated: boolean) {
-    if (!session.editor?.isConnected || session.composing) return;
+    if (syncingSettings || !session.editor?.isConnected || session.composing) return;
     const editor = session.editor;
     if (!contextEnabled(editor)) {
       deactivate();
@@ -273,22 +276,62 @@ export function startNativeType(options: {
 
   let settingsEpoch = 0;
   const stopSettings = options.settings?.subscribe(next => {
+    if (disposed) return;
     settingsEpoch += 1;
     if (!sameSettings(settings, next)) applySettings(next);
   });
-  const loadEpoch = settingsEpoch;
-  void options.settings?.load().then(loaded => {
-    if (loadEpoch !== settingsEpoch) return;
-    if (!sameSettings(settings, loaded)) applySettings(loaded);
-  }).catch(() => {
-    // Keep the startup pair. Storage can fail without blocking the verified zh → en path.
-  });
+  let reloadSettingsQueued = false;
+  async function reloadSettings() {
+    if (!options.settings || disposed) return;
+    if (syncingSettings) {
+      reloadSettingsQueued = true;
+      return;
+    }
+    syncingSettings = true;
+    // A resumed tab may have missed storage notifications. Invalidate the old
+    // preview and any pending paste before checking the persisted settings.
+    cancelSession(session);
+    session.sourceText = '';
+    session.preview = undefined;
+    overlay.hide();
+    try {
+      do {
+        reloadSettingsQueued = false;
+        const loadEpoch = settingsEpoch;
+        try {
+          const loaded = await options.settings.load();
+          if (!disposed && !reloadSettingsQueued && loadEpoch === settingsEpoch && !sameSettings(settings, loaded)) {
+            applySettings(loaded);
+          }
+        } catch {
+          // A transient storage failure keeps the last successfully read settings.
+        }
+      } while (!disposed && reloadSettingsQueued);
+    } finally {
+      syncingSettings = false;
+      if (!disposed) {
+        const focused = document.activeElement === overlay.host ? session.editor : platform.findEditor(document.activeElement);
+        if (focused) activate(focused);
+        else deactivate();
+      }
+    }
+  }
+  void reloadSettings();
+
+  const resume = () => {
+    if (document.visibilityState !== 'hidden') void reloadSettings();
+  };
+  host.listen(document, 'visibilitychange', resume);
+  host.listen(window, 'focus', resume);
+  host.listen(window, 'pageshow', resume);
 
   host.listen(document, 'focusin', event => {
     if (event.target === overlay.host) return;
     const editor = platform.findEditor(event.target);
-    if (editor) activate(editor);
-    else deactivate();
+    if (editor) {
+      if (editor !== session.editor) void reloadSettings();
+      activate(editor);
+    } else deactivate();
   });
   host.listen(document, 'focusout', () => {
     // Native focus transitions can expose BODY until the next task (including AX clicks).
@@ -318,6 +361,9 @@ export function startNativeType(options: {
     refresh();
   });
   host.onInvalidated(() => {
+    if (disposed) return;
+    disposed = true;
+    settingsEpoch += 1;
     stopSettings?.();
     deactivate();
     overlay.destroy();

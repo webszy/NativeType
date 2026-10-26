@@ -1,0 +1,63 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "nativetype-api",
+  "account_id": "d44223ee73c4210abdaf28c3a7dcffe6",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-26",
+  "compatibility_flags": ["nodejs_compat"],
+  "upload_source_maps": true,
+  // Deploy with the Cloudflare account that owns typewith.si.
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "api.typewith.si",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    }
+  },
+  // Production browser allowlist. Empty until the published extension id is known.
+  // Local development overrides this from .dev.vars. A wildcard origin is ignored by the Worker.
+  "vars": {
+    "ALLOWED_ORIGINS": ""
+  },
+  "secrets": {
+    "required": ["ANALYTICS_HMAC_SECRET"]
+  },
+  // Pin the production database so deploys and migrations target this resource.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nativetype-analytics",
+      "database_id": "6080527d-a65a-44de-a308-c8eed695fb32",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // namespace_id is chosen by us and must be unique in the Cloudflare account.
+  // The limit is enforced inside one Cloudflare location and can be exceeded globally.
+  "ratelimits": [
+    {
+      "name": "ANALYTICS_RATE_LIMITER",
+      "namespace_id": "10001",
+      "simple": {
+        "limit": 60,
+        "period": 60
+      }
+    }
+  ],
+  // Once per day, after the UTC date has rolled. Not a high-frequency schedule.
+  "triggers": {
+    "crons": ["0 3 * * *"]
+  }
+}

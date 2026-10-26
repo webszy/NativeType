@@ -1,3 +1,13 @@
-// Shared types for the extension and the future API.
-// Request, event, and language schemas are added when those APIs are defined.
-export {};
+export {
+  analyticsErrorCodes,
+  analyticsEventTypes,
+  analyticsRequestFields,
+  isAnalyticsEventType,
+} from './analytics';
+
+export type {
+  AnalyticsErrorBody,
+  AnalyticsErrorCode,
+  AnalyticsEventRequest,
+  AnalyticsEventType,
+} from './analytics';

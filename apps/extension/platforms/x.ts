@@ -88,11 +88,24 @@ function shellOf(editor: HTMLElement): HTMLElement {
 function isComposerQuote(quote: Element, editor: HTMLElement): boolean {
   if (editor.contains(quote) || quote.closest(menuSelector)) return false;
   const tweet = quote.closest('article[data-testid="tweet"]');
-  return !(tweet && tweet.contains(quote) && !tweet.contains(editor));
+  if (tweet && !tweet.contains(editor)) return false;
+  let owner = quote.parentElement;
+  while (owner && !owner.contains(editor)) owner = owner.parentElement;
+  const editors = owner?.querySelectorAll(composerSelector);
+  return editors?.length === 1 && editors[0] === editor;
 }
 
 function hasComposerQuote(scope: ParentNode, editor: HTMLElement): boolean {
-  return [...scope.querySelectorAll('[data-testid="quoteTweet"]')].some(quote => isComposerQuote(quote, editor));
+  if ([...scope.querySelectorAll('[data-testid="quoteTweet"]')].some(quote => isComposerQuote(quote, editor))) return true;
+  // Current X renders a quote as an attached post button, without quoteTweet
+  // or a status link. Require its author and timestamp so media/link cards
+  // and the quoted post inside a reply's parent tweet do not count.
+  return [...scope.querySelectorAll('[data-testid="attachments"]')].some(attachment =>
+    isComposerQuote(attachment, editor)
+    && [...attachment.querySelectorAll('button[role="button"]')].some(card =>
+      isComposerQuote(card, editor)
+      && card.querySelector('[data-testid="User-Name"]')
+      && card.querySelector('time[datetime]')));
 }
 
 function hasReplyAnchor(editor: HTMLElement, shell: HTMLElement): boolean {
@@ -149,7 +162,7 @@ function observe(editor: HTMLElement, listener: PlatformEditorListener): () => v
     subtree: true,
     characterData: true,
     attributes: true,
-    attributeFilter: ['data-testid', 'role'],
+    attributeFilter: ['data-testid', 'role', 'datetime'],
   });
   // Watch only direct child changes along its ancestor path so removal of
   // the composer or an enclosing dialog also releases the observer.

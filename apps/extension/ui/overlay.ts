@@ -36,7 +36,7 @@ function textLayout(editor: HTMLElement) {
   return { left, bottom: bottom ?? top + (parseFloat(style.lineHeight) || fontSize * 1.2), indent: fontSize * 2 };
 }
 
-export function createOverlay(onRetry: () => void, onReplace: () => void, layoutFor: (editor: HTMLElement) => OverlayLayout, languagePair: LanguagePair, onClose?: () => void) {
+export function createOverlay(onRetry: () => void, onReplace: () => void, layoutFor: (editor: HTMLElement) => OverlayLayout, languagePair: LanguagePair, onClose?: () => void, onOpenSettings?: () => void | Promise<void>) {
   const host = document.createElement('div');
   host.dataset.nativetype = 'preview';
   host.setAttribute('translate', 'no');
@@ -48,7 +48,7 @@ export function createOverlay(onRetry: () => void, onReplace: () => void, layout
     :host { color-scheme: light dark; }
     * { box-sizing: border-box; }
     section { position:relative;background:var(--nt-bg,#fff);color:var(--nt-fg,#0f1419);border:1px solid var(--nt-border,#cfd9de);border-radius:12px;padding:12px 14px;box-shadow:0 8px 28px #0005;font:14px/1.45 system-ui,sans-serif; }
-    header { font-size:11px;font-weight:600;opacity:.65;margin-bottom:6px;padding-right:24px; }
+    header { display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;opacity:.65;margin-bottom:6px;padding-right:24px; }
     p { margin:0;white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto;max-height:var(--nt-text-height,160px); }
     footer { display:flex;justify-content:flex-end;gap:8px;margin-top:10px; }
     button { font:600 13px system-ui,sans-serif;cursor:pointer;border:1px solid var(--nt-border,#cfd9de);border-radius:999px;padding:6px 12px;background:transparent;color:inherit; }
@@ -56,6 +56,9 @@ export function createOverlay(onRetry: () => void, onReplace: () => void, layout
     button:focus-visible { outline:2px solid #1d9bf0;outline-offset:2px; }
     button.primary { background:var(--nt-fg,#0f1419);color:var(--nt-bg,#fff);border-color:transparent; }
     button.close { position:absolute;top:6px;right:6px;width:24px;height:24px;padding:0;border:0;font:20px/1 system-ui,sans-serif;display:flex;align-items:center;justify-content:center; }
+    button.settings { display:flex;align-items:center;justify-content:center;flex:none;width:22px;height:22px;padding:3px;border:0; }
+    button.settings:disabled { opacity:.5;cursor:wait; }
+    button.settings svg { width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round; }
     [hidden] { display:none!important; }
   `;
   const panel = document.createElement('section');
@@ -63,7 +66,40 @@ export function createOverlay(onRetry: () => void, onReplace: () => void, layout
   panel.setAttribute('aria-label', 'NativeType translation');
   let pair = languagePair;
   const label = document.createElement('header');
-  label.textContent = `NativeType · ${describeLanguagePair(pair)}`;
+  const pairLabel = document.createElement('span');
+  pairLabel.textContent = `NativeType · ${describeLanguagePair(pair)}`;
+  label.append(pairLabel);
+  const settings = document.createElement('button');
+  settings.type = 'button';
+  settings.className = 'settings';
+  settings.title = 'Open settings';
+  settings.setAttribute('aria-label', 'Open NativeType settings');
+  if (onOpenSettings) {
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.setAttribute('focusable', 'false');
+    const wheel = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    wheel.setAttribute('d', 'M10 3h4l.5 2.5 2 1.2 2.4-.7 2 3.4L19 11v2l1.9 1.6-2 3.4-2.4-.7-2 1.2L14 21h-4l-.5-2.5-2-1.2-2.4.7-2-3.4L5 13v-2L3.1 9.4l2-3.4 2.4.7 2-1.2L10 3Z');
+    const center = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    center.setAttribute('cx', '12');
+    center.setAttribute('cy', '12');
+    center.setAttribute('r', '3');
+    icon.append(wheel, center);
+    settings.append(icon);
+    settings.addEventListener('click', async () => {
+      settings.disabled = true;
+      try {
+        await onOpenSettings();
+        settings.title = 'Open settings';
+      } catch {
+        settings.title = 'Couldn’t open settings. Reload X and try again.';
+      } finally {
+        settings.disabled = false;
+      }
+    });
+    label.append(settings);
+  }
   const close = document.createElement('button');
   close.type = 'button';
   close.className = 'close';
@@ -87,7 +123,7 @@ export function createOverlay(onRetry: () => void, onReplace: () => void, layout
   replace.textContent = 'Replace';
   replace.addEventListener('click', onReplace);
   // Keep the caret in X; its focus trap does not understand shadow-internal buttons.
-  for (const button of [retry, replace, close]) button.addEventListener('pointerdown', event => event.preventDefault());
+  for (const button of [retry, replace, close, settings]) button.addEventListener('pointerdown', event => event.preventDefault());
   footer.append(retry, replace);
   panel.append(label, close, message, footer);
   shadow.append(style, panel);
@@ -221,7 +257,7 @@ export function createOverlay(onRetry: () => void, onReplace: () => void, layout
     isVisible: () => visible,
     setLanguagePair(next: LanguagePair) {
       pair = next;
-      label.textContent = `NativeType · ${describeLanguagePair(pair)}`;
+      pairLabel.textContent = `NativeType · ${describeLanguagePair(pair)}`;
     },
     reposition: schedule,
     hide,

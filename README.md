@@ -4,7 +4,7 @@ Write in your language. Publish in another.
 
 Experimental open-source Chrome extension for frictionless cross-language writing.
 
-**Status:** Experimental, version 0.0.3.
+**Status:** Experimental, version 0.0.4.
 
 Default: **Chinese → Chrome Built-in Translator → English → Replace**. Settings can change the trigger language, the target language, and which X composers run translation.
 
@@ -21,8 +21,8 @@ pnpm workspaces, without Turborepo or Nx:
 
 ```text
 apps/extension/        Chrome extension (WXT)
-apps/api/              Future Cloudflare Workers API (not implemented)
-packages/contracts/    Shared types for the extension and API (no schemas yet)
+apps/api/              Cloudflare Worker for pseudonymous usage events
+packages/contracts/    Shared types for the extension and API
 ```
 
 Run commands from the repository root. These call the extension package:
@@ -41,7 +41,7 @@ pnpm --filter @nativetype/extension build
 pnpm --filter @nativetype/extension test
 ```
 
-`pnpm dev`, `pnpm build`, `pnpm typecheck`, and `pnpm zip` remain the root aliases for the extension. `@nativetype/api` is not built or deployed. `@nativetype/contracts` only typechecks; it does not ship inside the extension.
+`pnpm dev`, `pnpm build`, and `pnpm zip` remain the root aliases for the extension. `pnpm typecheck` also checks `@nativetype/contracts` and `@nativetype/api`. The extension does not call the API and does not bundle the contracts package. API commands are `pnpm dev:api`, `pnpm test:api`, `pnpm build:api`, and `pnpm db:migrate:api:local`. Remote migration and deploy are documented in `apps/api/README.md` and are not part of the extension workflow.
 
 ## Development
 
@@ -59,7 +59,7 @@ pnpm typecheck
 pnpm build
 ```
 
-In Chrome, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `apps/extension/dist/chrome-mv3`. Reload X after loading or updating the extension. `pnpm zip` creates `apps/extension/dist/nativetype-0.0.3-chrome.zip`; unpack it before using Load unpacked. The zip keeps the `nativetype` artifact name so it can update the existing Chrome Web Store item. The extension version stays `0.0.3`.
+In Chrome, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `apps/extension/dist/chrome-mv3`. Reload X after loading or updating the extension. `pnpm zip` creates `apps/extension/dist/nativetype-0.0.4-chrome.zip`; unpack it before using Load unpacked. The zip keeps the `nativetype` artifact name so it can update the existing Chrome Web Store item. The current extension version is `0.0.4`.
 
 ## Chrome Web Store screenshots
 
@@ -114,7 +114,7 @@ An existing Chrome may require manually loading the fresh `apps/extension/dist/c
 5. Verify the composer contains English, the Post button remains enabled, and you can append text, move the caret, and undo normally. Publish only when you intend to.
 6. Repeat in Reply/Quote Post, including multiline text and Chinese IME input. With two composers open, only the focused one should translate or change.
 
-Click the NativeType toolbar icon to open Settings in its own tab. Changes save automatically and apply to X tabs that are already open. Turning off Replies, for example, hides NativeType on reply composers and leaves the draft untouched. A non-Chinese trigger uses Chrome’s Language Detector and does not translate text in another language. The first use of a language pair still asks for **Enable translation** before Chrome downloads that pack. Settings does not download language packs by itself.
+Click the NativeType toolbar icon or the gear beside the language pair in the translation preview to open Settings in its own tab. Changes save automatically and apply to X tabs that are already open. Returning to an X tab also rechecks saved settings before resuming its preview. Turning off Replies, for example, hides NativeType on reply composers and leaves the draft untouched. A non-Chinese trigger uses Chrome’s Language Detector and does not translate text in another language. The first use of a language pair still asks for **Enable translation** before Chrome downloads that pack. Settings does not download language packs by itself.
 
 ## Translator API
 
@@ -128,7 +128,7 @@ Chrome 138 introduced the stable desktop API; use the latest Chrome. Stable supp
 
 - No account, API key, server, or external translation API.
 - Translation uses Chrome's built-in Translator API.
-- NativeType itself does not upload text to a NativeType server, record drafts, or add analytics/telemetry. Chrome manages its own model downloads and implementation.
+- NativeType itself does not upload text to a NativeType server, record drafts, or add analytics/telemetry. Chrome manages its own model downloads and implementation. `apps/api` can store pseudonymous usage counts, but the extension does not send them. That stays off until a separate opt-in exists.
 - Production Manifest V3 declares one permission, `storage`, so language and X context preferences can stay on this device. Draft text is not stored. There are no `host_permissions`. The only site match is `https://x.com/*`, allowing the content script to read the active composer and replace it on request. Chrome may still describe this as access to X site content. The toolbar icon opens the Settings tab; there is no popup.
 
 ## Implementation
@@ -138,6 +138,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for module boundaries and the later exten
 - `entrypoints/content.ts`: resolves the X platform and Chrome provider, then starts and stops the content script with the saved settings and trigger detector.
 - `entrypoints/background.ts`: opens Settings when the toolbar icon is clicked. `entrypoints/options/`: the Settings page.
 - `settings/`: settings types, defaults, validation, `chrome.storage.local`, and the page renderer.
+- `settings/config.ts`: platform groups, collapse titles/default state, context labels and default values. The Settings UI and stored-context validation use this object when adding platforms or options.
 - `core/`: focused composer tracking, X context gate, one-second debounce, IME handling, stale-request protection, in-memory result reuse for the current language pair, retry, replace, and cleanup.
 - `translators/chrome.ts`: Chrome API availability, activation, download progress, cancellation, and one instance per language pair.
 - `platforms/x.ts`: semantic X selector (`contenteditable`, `role`, `data-testid`), paragraph reading, local editor observation, post/reply/quote classification, native selection + a plain-text `paste` event. X's own paste handler updates the editor state and DOM; no direct `innerHTML` replacement, clipboard permission or private React state access.
@@ -177,4 +178,4 @@ See [VERIFICATION.md](VERIFICATION.md) for the executed checks, real-X observati
 - Experimental contenteditable support: replacement depends on X's editor accepting a plain-text paste event. X may change its editor behavior. Formatting/mention entities can be flattened by whole-draft replacement; review before posting.
 - First model download can take time. Retry is deterministic machine translation, not AI rewriting.
 - Very tall/offscreen composers may require scrolling to reach a preview; it is kept outside the input text.
-- The 0.0.1 build passed real-X translation, Replace and continued-editing checks in New Post, Reply and Quote Post. Later local changes, including language settings and context switches, have not been retested on live X. Posting was intentionally not executed. A cold language-pack download and rich-text entities were not tested on X.
+- The 0.0.4 real-X run exercised language settings, New posts and Replies switches, replacement, persistence, and two Settings tabs. After follow-up fixes, quote switches, language changes and Replace also passed on real X. Automated checks pass 71 Node tests and 57 local browser checks. The original intermittent settings notification failure remains difficult to reproduce; missed-notification recovery has regression coverage. See [VERIFICATION.md](VERIFICATION.md). Cold language-pack downloads and rich-text entities remain unverified on X.

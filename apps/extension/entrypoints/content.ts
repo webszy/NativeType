@@ -1,8 +1,10 @@
+import { browser } from 'wxt/browser';
 import { startNativeType } from '../core/controller';
 import { defaultLanguagePair } from '../languages/config';
 import { createTriggerDetector } from '../languages/detector';
 import { resolvePlatform } from '../platforms/registry';
 import { createChromeSettingsStore } from '../settings/chrome';
+import { OPEN_SETTINGS_MESSAGE } from '../settings/messages';
 import { getTranslationProvider } from '../translators/registry';
 
 export default defineContentScript({
@@ -20,6 +22,10 @@ export default defineContentScript({
       host: {
         listen: (target, type, listener) => ctx.addEventListener(target, type, listener),
         onInvalidated: listener => ctx.onInvalidated(listener),
+        openSettings: async () => {
+          const opened = await browser.runtime.sendMessage({ type: OPEN_SETTINGS_MESSAGE });
+          if (opened !== true) throw new Error('Could not open NativeType settings');
+        },
       },
     });
   },

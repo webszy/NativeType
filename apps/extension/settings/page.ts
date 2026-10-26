@@ -1,5 +1,6 @@
 import { describeLanguagePair } from '../languages/config';
 import { languageOptionLabel, translatorLanguages } from '../languages/catalog';
+import { platformContextConfig } from './config';
 import { getDefaultSettings, normalizeSettings, sameSettings, type NativeTypeSettings, type SettingsStore } from './store';
 
 const languages = [...translatorLanguages].sort((left, right) => left.englishName.localeCompare(right.englishName));
@@ -9,9 +10,18 @@ export async function mountSettingsPage(root: HTMLElement, store: SettingsStore,
   const targetSelect = document.createElement('select');
   sourceSelect.id = 'source-language';
   targetSelect.id = 'target-language';
-  const post = switchInput('context-post');
-  const reply = switchInput('context-reply');
-  const quote = switchInput('context-quote');
+  const contextGroups = Object.entries(platformContextConfig).map(([platform, config]) => ({
+    platform,
+    title: config.title,
+    defaultOpen: config.defaultOpen,
+    inputs: Object.entries(config.contexts).map(([context, option]) => ({
+      context,
+      input: switchInput(option.inputId),
+      label: option.label,
+      hint: option.hint,
+      defaultEnabled: option.defaultEnabled,
+    })),
+  }));
   const direction = document.createElement('p');
   direction.className = 'direction';
   direction.id = 'translation-direction';
@@ -31,7 +41,7 @@ export async function mountSettingsPage(root: HTMLElement, store: SettingsStore,
     brand(iconUrl),
     translationSection(sourceSelect, targetSelect, direction),
     divider(),
-    contextSection(post, reply, quote),
+    contextSection(contextGroups),
     footer(status),
   );
   render(lastSaved);
@@ -49,7 +59,7 @@ export async function mountSettingsPage(root: HTMLElement, store: SettingsStore,
       persist();
     });
   }
-  for (const input of [post, reply, quote]) {
+  for (const { input } of contextGroups.flatMap(group => group.inputs)) {
     input.addEventListener('change', () => {
       if (!rendering) persist();
     });
@@ -84,13 +94,10 @@ export async function mountSettingsPage(root: HTMLElement, store: SettingsStore,
         sourceLanguage: sourceSelect.value,
         targetLanguage: targetSelect.value,
       },
-      contexts: {
-        x: {
-          post: post.checked,
-          reply: reply.checked,
-          quote: quote.checked,
-        },
-      },
+      contexts: Object.fromEntries(contextGroups.map(group => [
+        group.platform,
+        Object.fromEntries(group.inputs.map(({ context, input }) => [context, input.checked])),
+      ])),
     });
   }
 
@@ -98,9 +105,12 @@ export async function mountSettingsPage(root: HTMLElement, store: SettingsStore,
     rendering = true;
     fill(sourceSelect, settings.translation.sourceLanguage, settings.translation.targetLanguage);
     fill(targetSelect, settings.translation.targetLanguage, settings.translation.sourceLanguage);
-    post.checked = settings.contexts.x.post;
-    reply.checked = settings.contexts.x.reply;
-    quote.checked = settings.contexts.x.quote;
+    const contexts: Record<string, Record<string, boolean>> = settings.contexts;
+    for (const group of contextGroups) {
+      for (const { context, input, defaultEnabled } of group.inputs) {
+        input.checked = contexts[group.platform]?.[context] ?? defaultEnabled;
+      }
+    }
     updateDirection();
     rendering = false;
   }
@@ -190,7 +200,14 @@ function translationSection(sourceSelect: HTMLSelectElement, targetSelect: HTMLS
   return section;
 }
 
-function contextSection(post: HTMLInputElement, reply: HTMLInputElement, quote: HTMLInputElement): HTMLElement {
+interface ContextGroup {
+  platform: string;
+  title: string;
+  defaultOpen: boolean;
+  inputs: { input: HTMLInputElement; label: string; hint: string }[];
+}
+
+function contextSection(groups: ContextGroup[]): HTMLElement {
   const section = document.createElement('section');
   section.setAttribute('aria-labelledby', 'contexts-heading');
   const heading = document.createElement('h2');
@@ -198,14 +215,28 @@ function contextSection(post: HTMLInputElement, reply: HTMLInputElement, quote: 
   heading.textContent = 'Where NativeType works';
   const description = document.createElement('p');
   description.className = 'section-description';
-  description.textContent = 'Choose which X writing contexts enable translation.';
-  section.append(
-    heading,
-    description,
-    contextRow(post, 'New posts', 'When composing a new post'),
-    contextRow(reply, 'Replies', 'When replying to a post'),
-    contextRow(quote, 'Quote posts', 'When quoting another post'),
-  );
+  description.textContent = 'Choose where translation is enabled.';
+  section.append(heading, description);
+  for (const group of groups) {
+    const collapse = document.createElement('details');
+    collapse.className = 'context-group';
+    collapse.open = group.defaultOpen;
+    const summary = document.createElement('summary');
+    summary.className = 'context-summary';
+    const chevron = document.createElement('span');
+    chevron.className = 'context-chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    const title = document.createElement('span');
+    title.textContent = group.title;
+    summary.append(chevron, title);
+    const content = document.createElement('div');
+    content.className = 'context-options';
+    content.id = `contexts-${group.platform}`;
+    summary.setAttribute('aria-controls', content.id);
+    content.append(...group.inputs.map(({ input, label, hint }) => contextRow(input, label, hint)));
+    collapse.append(summary, content);
+    section.append(collapse);
+  }
   return section;
 }
 

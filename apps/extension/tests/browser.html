@@ -54,6 +54,7 @@ startNativeType({
   host: {
     listen: (target, type, listener) => target.addEventListener(type, listener, { signal: invalidation.signal }),
     onInvalidated(callback) { invalidation.signal.addEventListener('abort', callback); },
+    openSettings() { window.open('/tests/settings-page.html', 'nativetype-settings'); },
   },
 });
 const invalidate = () => invalidation.abort();

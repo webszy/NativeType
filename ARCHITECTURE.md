@@ -2,7 +2,7 @@
 
 NativeType translates the focused X composer with Chrome's built-in translator, shows a preview, and replaces the draft only when the user chooses Replace. The default pair is Chinese → English. Settings can change the pair and can turn New Post, Reply, or Quote Post off independently.
 
-The Chrome extension is `apps/extension`. `apps/api` is a future Cloudflare Workers package and is not called by the extension. `packages/contracts` is reserved for shared types and currently exports nothing.
+The Chrome extension is `apps/extension`. `apps/api` is a Cloudflare Worker that can record pseudonymous usage events. The extension does not call it. `packages/contracts` exports the shared analytics event types. Translation still happens only in the extension.
 
 ## Modules
 
@@ -33,3 +33,7 @@ The Settings page serializes writes and keeps the latest pending form state. Sto
 A new platform is a `PlatformAdapter` in `platforms/`, one line in `platforms/registry.ts`, an explicit host in the content-script matches, and a browser check. A new translator is a `TranslationProvider` in `translators/` and one registry entry. A newly supported Chrome translator language is one entry in `languages/catalog.ts`.
 
 The manifest host stays explicit in the content script. Registry code does not generate it. There is no plugin loader or provider picker. The `storage` permission is only for this settings record.
+
+## API
+
+`apps/api` exposes `POST /v1/events` and a daily D1 retention cron. The event names and the error body live in `@nativetype/contracts`. The Worker checks the body again at runtime. It stores one aggregated row per UTC date and hashed install id. There is no translate route in this package yet. See `apps/api/README.md`.

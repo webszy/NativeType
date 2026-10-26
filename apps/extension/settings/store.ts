@@ -1,5 +1,6 @@
 import { canonicalLanguage } from '../languages/catalog';
 import { defaultLanguagePair } from '../languages/config';
+import { platformContextConfig, type ContextSettings } from './config';
 
 export interface NativeTypeSettings {
   schemaVersion: 1;
@@ -7,13 +8,7 @@ export interface NativeTypeSettings {
     sourceLanguage: string;
     targetLanguage: string;
   };
-  contexts: {
-    x: {
-      post: boolean;
-      reply: boolean;
-      quote: boolean;
-    };
-  };
+  contexts: ContextSettings;
 }
 
 export interface SettingsBackend {
@@ -35,18 +30,23 @@ export function getDefaultSettings(): NativeTypeSettings {
       sourceLanguage: defaultLanguagePair.source,
       targetLanguage: defaultLanguagePair.target,
     },
-    contexts: {
-      x: {
-        post: true,
-        reply: true,
-        quote: true,
-      },
-    },
+    contexts: normalizeContexts(undefined),
   };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function normalizeContexts(input: unknown): ContextSettings {
+  const stored = isRecord(input) ? input : {};
+  return Object.fromEntries(Object.entries(platformContextConfig).map(([platform, config]) => {
+    const values = isRecord(stored[platform]) ? stored[platform] : {};
+    return [platform, Object.fromEntries(Object.entries(config.contexts).map(([context, option]) => [
+      context,
+      typeof values[context] === 'boolean' ? values[context] : option.defaultEnabled,
+    ]))];
+  })) as ContextSettings;
 }
 
 function differentTarget(source: string): string {
@@ -57,30 +57,24 @@ export function normalizeSettings(input: unknown): NativeTypeSettings {
   const defaults = getDefaultSettings();
   const record = isRecord(input) ? input : {};
   const translation = isRecord(record.translation) ? record.translation : {};
-  const contexts = isRecord(record.contexts) ? record.contexts : {};
-  const x = isRecord(contexts.x) ? contexts.x : {};
   let sourceLanguage = canonicalLanguage(translation.sourceLanguage) ?? defaults.translation.sourceLanguage;
   let targetLanguage = canonicalLanguage(translation.targetLanguage) ?? defaults.translation.targetLanguage;
   if (sourceLanguage === targetLanguage) targetLanguage = differentTarget(sourceLanguage);
   return {
     schemaVersion: 1,
     translation: { sourceLanguage, targetLanguage },
-    contexts: {
-      x: {
-        post: typeof x.post === 'boolean' ? x.post : defaults.contexts.x.post,
-        reply: typeof x.reply === 'boolean' ? x.reply : defaults.contexts.x.reply,
-        quote: typeof x.quote === 'boolean' ? x.quote : defaults.contexts.x.quote,
-      },
-    },
+    contexts: normalizeContexts(record.contexts),
   };
 }
 
 export function sameSettings(left: NativeTypeSettings, right: NativeTypeSettings): boolean {
+  const leftContexts: Record<string, Record<string, boolean>> = left.contexts;
+  const rightContexts: Record<string, Record<string, boolean>> = right.contexts;
   return left.translation.sourceLanguage === right.translation.sourceLanguage
     && left.translation.targetLanguage === right.translation.targetLanguage
-    && left.contexts.x.post === right.contexts.x.post
-    && left.contexts.x.reply === right.contexts.x.reply
-    && left.contexts.x.quote === right.contexts.x.quote;
+    && Object.entries(platformContextConfig).every(([platform, config]) =>
+      Object.entries(config.contexts).every(([context, option]) =>
+        (leftContexts[platform]?.[context] ?? option.defaultEnabled) === (rightContexts[platform]?.[context] ?? option.defaultEnabled)));
 }
 
 export function createSettingsStore(backend: SettingsBackend): SettingsStore {
