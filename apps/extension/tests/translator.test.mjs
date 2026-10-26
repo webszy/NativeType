@@ -1,0 +1,10 @@
+import './languages/config.test.mjs';
+import './languages/detector.test.mjs';
+import './settings/store.test.mjs';
+import './settings/page.test.mjs';
+import './core/session.test.mjs';
+import './core/controller.test.mjs';
+import './core/boundaries.test.mjs';
+import './platforms/context.test.mjs';
+import './platforms/x.test.mjs';
+import './translators/chrome.test.mjs';

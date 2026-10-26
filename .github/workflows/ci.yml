@@ -18,5 +18,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
-      - run: node --test tests/translator.test.mjs
+      - run: pnpm test:extension
       - run: pnpm build

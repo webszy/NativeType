@@ -9,23 +9,14 @@
   },
   "packageManager": "pnpm@11.24.0",
   "scripts": {
-    "dev": "wxt",
-    "build": "wxt build",
-    "screenshot:store": "node --import tsx scripts/capture-store-screenshots.ts",
-    "zip": "wxt zip",
-    "compile": "tsc --noEmit",
-    "postinstall": "wxt prepare",
-    "typecheck": "tsc --noEmit"
-  },
-  "devDependencies": {
-    "@types/node": "^26.6.4",
-    "@types/ws": "^8.18.2",
-    "playwright": "^1.63.0",
-    "tsx": "^4.23.15",
-    "typescript": "^5.9.3",
-    "vite": "^8.1.5",
-    "web-ext": "^10.5.0",
-    "ws": "^8.22.0",
-    "wxt": "^0.21.3"
+    "dev": "pnpm dev:extension",
+    "dev:extension": "pnpm --filter @nativetype/extension dev",
+    "build": "pnpm build:extension",
+    "build:extension": "pnpm --filter @nativetype/extension build",
+    "test:extension": "pnpm --filter @nativetype/extension test",
+    "typecheck": "pnpm --filter @nativetype/extension --filter @nativetype/contracts typecheck",
+    "zip": "pnpm --filter @nativetype/extension zip",
+    "compile": "pnpm --filter @nativetype/extension compile",
+    "screenshot:store": "pnpm --filter @nativetype/extension screenshot:store"
   }
 }

@@ -4,25 +4,53 @@ Write in your language. Publish in another.
 
 Experimental open-source Chrome extension for frictionless cross-language writing.
 
-**Status:** v0 / Experimental.
+**Status:** Experimental, version 0.0.3.
 
-Current v0: **Chinese → Chrome Built-in Translator → English → Replace**.
+Default: **Chinese → Chrome Built-in Translator → English → Replace**. Settings can change the trigger language, the target language, and which X composers run translation.
 
-Experimental build for X on desktop Chrome. New Post, Reply and Quote Post have been verified with Chrome’s real Translator and X’s current editor. Type Chinese in a post, reply, or quote-post composer, pause for one second, review the English preview, then choose **Replace**. **Retry** translates the current draft again. NativeType never clicks Post.
+Experimental build for X on desktop Chrome. The original Chinese → English flow was verified with Chrome’s real Translator and X’s current editor. Type in the configured language, pause for one second, review the preview, then choose **Replace**. **Retry** translates the current draft again. NativeType never clicks Post. Click the toolbar icon to open Settings.
 
 ## Requirements
 
 - Node.js 20.19+ and pnpm 11.24.0 for development.
 - Desktop Google Chrome 138+ for installation and the built-in Translator API.
 
+## Repository
+
+pnpm workspaces, without Turborepo or Nx:
+
+```text
+apps/extension/        Chrome extension (WXT)
+apps/api/              Future Cloudflare Workers API (not implemented)
+packages/contracts/    Shared types for the extension and API (no schemas yet)
+```
+
+Run commands from the repository root. These call the extension package:
+
+```sh
+pnpm dev:extension
+pnpm build:extension
+pnpm test:extension
+```
+
+The same scripts work through the filter:
+
+```sh
+pnpm --filter @nativetype/extension dev
+pnpm --filter @nativetype/extension build
+pnpm --filter @nativetype/extension test
+```
+
+`pnpm dev`, `pnpm build`, `pnpm typecheck`, and `pnpm zip` remain the root aliases for the extension. `@nativetype/api` is not built or deployed. `@nativetype/contracts` only typechecks; it does not ship inside the extension.
+
 ## Development
 
 ```sh
 pnpm install
-pnpm dev
+pnpm dev:extension
 ```
 
-WXT starts the development extension. Open X in that browser and sign in if needed. Production permissions below refer to `pnpm build`; WXT's development tooling may add development-only access.
+WXT starts the development extension from `apps/extension`. Open X in that browser and sign in if needed. Production permissions below refer to `pnpm build`; WXT's development tooling may add development-only access.
 
 ## Installation
 
@@ -31,7 +59,7 @@ pnpm typecheck
 pnpm build
 ```
 
-In Chrome, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `dist/chrome-mv3` inside this repository. Reload X after loading or updating the extension. `pnpm zip` optionally creates a distributable ZIP; unpack it before using Load unpacked.
+In Chrome, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `apps/extension/dist/chrome-mv3`. Reload X after loading or updating the extension. `pnpm zip` creates `apps/extension/dist/nativetype-0.0.3-chrome.zip`; unpack it before using Load unpacked. The zip keeps the `nativetype` artifact name so it can update the existing Chrome Web Store item. The extension version stays `0.0.3`.
 
 ## Chrome Web Store screenshots
 
@@ -42,11 +70,11 @@ pnpm install
 pnpm screenshot:store
 ```
 
-The script builds the production extension into `dist/chrome-mv3`, loads that unpacked Manifest V3 build into a separate headed Chrome window, and opens X's New Post composer. **On the first run, sign in to X manually in that window**, including any authentication challenges. The script waits up to ten minutes and resumes automatically after login. Keep the window open and let the script control the composer once login completes. Future runs reuse that login and Chrome's downloaded language models. Your everyday Chrome profile is not used.
+The script builds the production extension into `apps/extension/dist/chrome-mv3`, loads that unpacked Manifest V3 build into a separate headed Chrome window, and opens X's New Post composer. **On the first run, sign in to X manually in that window**, including any authentication challenges. The script waits up to ten minutes and resumes automatically after login. Keep the window open and let the script control the composer once login completes. Future runs reuse that login and Chrome's downloaded language models. Your everyday Chrome profile is not used.
 
 The persistent profile lives **outside the repository** in the OS cache, under `NativeType/store-screenshots/<project-id>/chrome`: `~/Library/Caches/` on macOS, `$XDG_CACHE_HOME` or `~/.cache/` on Linux, and `%LOCALAPPDATA%` on Windows. The terminal prints its exact location. Treat it as private authentication data; never commit or copy it into store assets. No cookies, passwords, tokens, storage-state files, traces or HAR recordings are exported. An optional in-repository profile is restricted to the gitignored `.cache/store-screenshots/` directory.
 
-The three live browser-page captures are saved to `store-assets/screenshots/`:
+The three live browser-page captures are saved to `apps/extension/store-assets/screenshots/`:
 
 | File | Real NativeType / X state |
 | --- | --- |
@@ -75,7 +103,7 @@ System Chrome is recommended because NativeType needs Chrome's real built-in Tra
 
 To reuse your everyday Chrome (144+) without another X login, open `chrome://inspect/#remote-debugging` in that browser and enable **Allow remote debugging for this browser instance**. Then run `pnpm screenshot:store --connect` and approve Chrome's connection dialog. Chrome's own consent allows a local debugging client to control that session; the capture script scopes Playwright to a new tab, clears only its own demo, closes that tab, and disconnects while leaving the existing browser and tabs open. Existing tabs are not paused or initialized by Playwright. It reads only `DevToolsActivePort` to discover the local WebSocket endpoint; it does not copy or export the profile. Chrome's consent-based server may return 404 for `/json/version`, so `--connect` uses the WebSocket endpoint directly. Use `--chrome-data-dir PATH` for a non-default Chrome user-data root, or `--cdp URL` for another explicitly enabled local debugging endpoint.
 
-An existing Chrome may require manually loading the fresh `dist/chrome-mv3` build in `chrome://extensions`, because extension installation through CDP normally requires a launch flag. The script checks the enabled unpacked extension's build path when it cannot load it automatically. If NativeType was installed from this project's legacy `.output/chrome-mv3` path, the script copies the production `dist/chrome-mv3` build there and reloads that same installation, preserving its extension ID. Keep only one enabled NativeType installation in that browser. The default command continues to use its dedicated persistent profile. `--connect` cannot be combined with `--headless`, `--profile`, or `--executable`.
+An existing Chrome may require manually loading the fresh `apps/extension/dist/chrome-mv3` build in `chrome://extensions`, because extension installation through CDP normally requires a launch flag. The script checks the enabled unpacked extension's build path when it cannot load it automatically. If NativeType was installed from this project's legacy `.output/chrome-mv3` path, the script copies the production `apps/extension/dist/chrome-mv3` build there and reloads that same installation, preserving its extension ID. Keep only one enabled NativeType installation in that browser. The default command continues to use its dedicated persistent profile. `--connect` cannot be combined with `--headless`, `--profile`, or `--executable`.
 
 ## One-minute manual test
 
@@ -86,9 +114,13 @@ An existing Chrome may require manually loading the fresh `dist/chrome-mv3` buil
 5. Verify the composer contains English, the Post button remains enabled, and you can append text, move the caret, and undo normally. Publish only when you intend to.
 6. Repeat in Reply/Quote Post, including multiline text and Chinese IME input. With two composers open, only the focused one should translate or change.
 
+Click the NativeType toolbar icon to open Settings in its own tab. Changes save automatically and apply to X tabs that are already open. Turning off Replies, for example, hides NativeType on reply composers and leaves the draft untouched. A non-Chinese trigger uses Chrome’s Language Detector and does not translate text in another language. The first use of a language pair still asks for **Enable translation** before Chrome downloads that pack. Settings does not download language packs by itself.
+
 ## Translator API
 
-Uses the stable [`Translator` API](https://developer.chrome.com/docs/ai/translator-api), `availability({ sourceLanguage: 'zh', targetLanguage: 'en' })`, `create`, download progress, and `translate`. One instance is reused per page. First-use activation is explicit; downloadable/downloading models offer **Enable translation**, then report progress. An unavailable API/pair produces a readable status; errors offer Retry. There is no server fallback.
+Uses the stable [`Translator` API](https://developer.chrome.com/docs/ai/translator-api). `availability`, `create`, download progress, and `translate` receive the source and target languages from Settings. Each language pair keeps its own instance. Switching pairs drops the others so an old result cannot fill the new preview. First-use activation is explicit; downloadable/downloading models offer **Enable translation**, then report progress. An unavailable API/pair produces a readable status; errors offer Retry. There is no server fallback.
+
+Chinese as the trigger language still uses the Han-script check and does not call the Language Detector. Every other trigger language asks Chrome’s Language Detector (`LanguageDetector`, or `ai.languageDetector` on earlier Chrome 138 builds). Traditional Chinese as a trigger requires Chrome 151+ to distinguish Chinese scripts. If an older detector returns only `zh`, the preview explains how to upgrade or choose Chinese as the trigger. Short text, mixed languages, low confidence, and text that is only a link, emoji, mention, or punctuation do not translate. If detection is missing, the preview says NativeType will not guess.
 
 Chrome 138 introduced the stable desktop API; use the latest Chrome. Stable supported installations do **not** normally need an origin-trial token or experimental flags. Availability still depends on Chrome's policies, platform, language-pack availability and downloads. Chromium-derived browsers and incognito profiles may differ. If unavailable, try a regular profile on current Google Chrome, check browser policy and model download/connectivity, and reload X. We do not bypass a disabled API.
 
@@ -97,36 +129,38 @@ Chrome 138 introduced the stable desktop API; use the latest Chrome. Stable supp
 - No account, API key, server, or external translation API.
 - Translation uses Chrome's built-in Translator API.
 - NativeType itself does not upload text to a NativeType server, record drafts, or add analytics/telemetry. Chrome manages its own model downloads and implementation.
-- Production Manifest V3 declares no `permissions` or `host_permissions`. Its only site match is `https://x.com/*`, allowing the content script to read the active composer and replace it on request. Chrome may still describe this as access to X site content.
+- Production Manifest V3 declares one permission, `storage`, so language and X context preferences can stay on this device. Draft text is not stored. There are no `host_permissions`. The only site match is `https://x.com/*`, allowing the content script to read the active composer and replace it on request. Chrome may still describe this as access to X site content. The toolbar icon opens the Settings tab; there is no popup.
 
 ## Implementation
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for module boundaries and the later extension points.
 
-- `entrypoints/content.ts`: resolves the X platform, Chrome provider, and zh → en pair, then starts and stops the content script.
-- `core/`: focused composer tracking, one-second debounce, IME handling, stale-request protection, one-entry in-memory result reuse, retry, replace, and cleanup.
-- `translators/chrome.ts`: Chrome API availability, activation, download progress, cancellation, and instance lifecycle.
-- `platforms/x.ts`: semantic X selector (`contenteditable`, `role`, `data-testid`), paragraph reading, local editor observation, native selection + a plain-text `paste` event. X's own paste handler updates the editor state and DOM; no direct `innerHTML` replacement, clipboard permission or private React state access.
-- `languages/config.ts`: the zh → en pair and Han-script input check.
-- `ui/overlay.ts`: Shadow DOM preview with Retry/Replace and Close, matching X's light/dark background. A top-layer popover stays 4px below the last rendered text line, including wrapping and line breaks, with a two-character indent. It follows edits immediately while the next translation is pending and updates on scroll/resize. The X adapter supplies an input container whose minimum height temporarily expands to fit the text and preview; hiding, closing, replacing or switching composers restores its original height style.
+- `entrypoints/content.ts`: resolves the X platform and Chrome provider, then starts and stops the content script with the saved settings and trigger detector.
+- `entrypoints/background.ts`: opens Settings when the toolbar icon is clicked. `entrypoints/options/`: the Settings page.
+- `settings/`: settings types, defaults, validation, `chrome.storage.local`, and the page renderer.
+- `core/`: focused composer tracking, X context gate, one-second debounce, IME handling, stale-request protection, in-memory result reuse for the current language pair, retry, replace, and cleanup.
+- `translators/chrome.ts`: Chrome API availability, activation, download progress, cancellation, and one instance per language pair.
+- `platforms/x.ts`: semantic X selector (`contenteditable`, `role`, `data-testid`), paragraph reading, local editor observation, post/reply/quote classification, native selection + a plain-text `paste` event. X's own paste handler updates the editor state and DOM; no direct `innerHTML` replacement, clipboard permission or private React state access.
+- `languages/`: the supported language list, the default Chinese → English pair, the Han-script fast path, and the Language Detector.
+- `ui/overlay.ts`: Shadow DOM preview with Retry/Replace and Close, matching X's light/dark background. A top-layer popover stays 4px below the last rendered text line, including wrapping and line breaks, with a two-character indent. It follows edits immediately while the next translation is pending and updates on scroll/resize. The X adapter supplies an input container whose minimum height temporarily expands to fit the text and preview; hiding, closing, replacing, disabling the current context, or switching composers restores its original height style.
 
 ## Verification
 
 ```sh
-node --test tests/translator.test.mjs
+pnpm test:extension
 pnpm typecheck
 pnpm build
 ```
 
-`tests/translator.test.mjs` loads the language, core, X platform, Chrome provider, and boundary checks. CI uses that same command.
+`pnpm test:extension` runs `apps/extension/tests/translator.test.mjs`. It loads the language, core, X platform, Chrome provider, and boundary checks. CI uses that command.
 
 For the browser regression fixture:
 
 ```sh
-pnpm exec vite --host 127.0.0.1 --port 5174
+pnpm --filter @nativetype/extension exec vite --host 127.0.0.1 --port 5174
 ```
 
-Open <http://127.0.0.1:5174/tests/browser.html> and click **Run regression tests**. It tests real DOM editing with a **fake Translator**, not Chrome's real translation model or X's React internals. Test files are not included in the production extension. No additional test dependency is needed.
+Open <http://127.0.0.1:5174/tests/browser.html> and click **Run regression tests**. It tests real DOM editing with a **fake Translator**, not Chrome's real translation model or X's React internals. <http://127.0.0.1:5174/tests/settings-page.html> mounts the Settings page against an in-memory store. Test files are not included in the production extension. No additional test dependency is needed.
 
 See [VERIFICATION.md](VERIFICATION.md) for the executed checks, real-X observations and testing limits.
 
@@ -137,9 +171,10 @@ See [VERIFICATION.md](VERIFICATION.md) for the executed checks, real-X observati
 ## Current limitations
 
 - Chrome Built-in Translator API compatibility; desktop Chrome only.
-- Chinese → English only (Han character detection; not full language identification).
-- X-first; New Post, Reply and Quote Post depend on X retaining its current semantic composer attributes.
+- Trigger languages other than Chinese need Chrome’s Language Detector. NativeType does not guess when detection is unavailable, and it does not translate a low-confidence or mixed result.
+- A saved language pair is kept even when that pack is not installed yet. Chrome may still report the pair as unavailable or require a download the first time it is used.
+- X-first; New Post, Reply and Quote Post depend on X retaining its current composer structure. Quote and reply detection uses the composer’s surrounding DOM, not the URL alone. An edit-post composer is not identified separately and can be treated as a new post. A composer with conflicting quote and reply signals is left alone.
 - Experimental contenteditable support: replacement depends on X's editor accepting a plain-text paste event. X may change its editor behavior. Formatting/mention entities can be flattened by whole-draft replacement; review before posting.
 - First model download can take time. Retry is deterministic machine translation, not AI rewriting.
 - Very tall/offscreen composers may require scrolling to reach a preview; it is kept outside the input text.
-- The 0.0.1 build passed real-X translation, Replace and continued-editing checks in New Post, Reply and Quote Post. The 0.0.2 cleanup passed the local browser regression fixture; it has not been retested on X. Posting was intentionally not executed. A cold language-pack download and rich-text entities were not tested on X.
+- The 0.0.1 build passed real-X translation, Replace and continued-editing checks in New Post, Reply and Quote Post. Later local changes, including language settings and context switches, have not been retested on live X. Posting was intentionally not executed. A cold language-pack download and rich-text entities were not tested on X.

@@ -1,0 +1,329 @@
+import { classifyTrigger, isLongEnoughToDetect, type LanguagePair } from '../languages/config';
+import type { TriggerDetector } from '../languages/detector';
+import type { PlatformAdapter } from '../platforms/types';
+import { getDefaultSettings, sameSettings, type NativeTypeSettings, type SettingsStore } from '../settings/store';
+import { TranslationError, type TranslationProvider } from '../translators/types';
+import { createOverlay, type PreviewState } from '../ui/overlay';
+import { beginRequest, cancelSession, createSession, isCurrentRequest } from './session';
+
+export interface ExtensionHost {
+  listen(target: Document, type: string, listener: (event: Event) => void): void;
+  onInvalidated(listener: () => void): void;
+}
+
+export function startNativeType(options: {
+  platform: PlatformAdapter;
+  provider: TranslationProvider;
+  languagePair: LanguagePair;
+  settings?: SettingsStore;
+  detector?: TriggerDetector;
+  host: ExtensionHost;
+}): void {
+  const { platform, provider, detector, host } = options;
+  let settings: NativeTypeSettings = {
+    ...getDefaultSettings(),
+    translation: {
+      sourceLanguage: options.languagePair.source,
+      targetLanguage: options.languagePair.target,
+    },
+  };
+  const session = createSession();
+  session.languagePair = {
+    source: settings.translation.sourceLanguage,
+    target: settings.translation.targetLanguage,
+  };
+  const overlay = createOverlay(() => {
+    if (!session.replacing) void translate(true);
+  }, async () => {
+    if (!session.editor || session.preview?.kind !== 'translated' || session.composing || session.replacing) return;
+    if (!contextEnabled(session.editor)) {
+      deactivate();
+      return;
+    }
+    if (platform.getText(session.editor) !== session.sourceText) {
+      refresh();
+      return;
+    }
+    const editor = session.editor;
+    const translation = session.preview.text;
+    const source = session.sourceText;
+    session.replacing = true;
+    cancelSession(session);
+    const revision = session.revision;
+    let success = false;
+    try {
+      success = await platform.replaceText(editor, source, translation, () =>
+        session.editor === editor && session.revision === revision && contextEnabled(editor));
+    } catch {
+      success = false;
+    } finally {
+      session.replacing = false;
+    }
+    if (session.editor !== editor || session.revision !== revision || !contextEnabled(editor)) {
+      refresh();
+      return;
+    }
+    if (success) {
+      session.sourceText = platform.getText(editor);
+      session.preview = undefined;
+      overlay.hide();
+    } else {
+      session.preview = { kind: 'error', text: platform.replacementErrorMessage };
+      overlay.show(editor, session.preview);
+    }
+  }, editor => platform.previewLayout(editor), currentPair(), () => {
+    cancelSession(session);
+  });
+
+  function currentPair(): LanguagePair {
+    return {
+      source: settings.translation.sourceLanguage,
+      target: settings.translation.targetLanguage,
+    };
+  }
+
+  function contextEnabled(editor: HTMLElement): boolean {
+    if (platform.id !== 'x') return false;
+    const context = platform.writingContext(editor);
+    if (context === 'unknown') return false;
+    return settings.contexts.x[context];
+  }
+
+  function refresh() {
+    if (!session.editor) return;
+    if (!contextEnabled(session.editor)) {
+      deactivate();
+      return;
+    }
+    if (session.replacing) return;
+    const editor = session.editor;
+    const text = platform.getText(editor);
+    if (text === session.sourceText && (session.preview || session.timer)) return;
+    const keepVisible = overlay.isVisible();
+    cancelSession(session);
+    session.sourceText = text;
+    session.preview = undefined;
+    const pair = currentPair();
+    const decision = classifyTrigger(text, pair.source);
+    if (session.composing || !text.trim() || decision === 'skip' || (decision === 'detect' && !isLongEnoughToDetect(text))) {
+      overlay.hide();
+      return;
+    }
+    if (session.cached?.source === text && session.cached.sourceLanguage === pair.source && session.cached.targetLanguage === pair.target) {
+      session.preview = { kind: 'translated', text: session.cached.translation };
+      overlay.show(editor, session.preview);
+      return;
+    }
+    if (decision === 'match' && keepVisible) {
+      session.preview = { kind: 'translating', text: 'Translating…' };
+      overlay.show(editor, session.preview);
+    } else overlay.hide();
+    session.timer = setTimeout(() => {
+      session.timer = undefined;
+      void translate(false);
+    }, 1000);
+  }
+
+  async function translate(activated: boolean) {
+    if (!session.editor?.isConnected || session.composing) return;
+    const editor = session.editor;
+    if (!contextEnabled(editor)) {
+      deactivate();
+      return;
+    }
+    if (activated) editor.focus({ preventScroll: true });
+    const text = platform.getText(editor);
+    const pair = currentPair();
+    const decision = classifyTrigger(text, pair.source);
+    if (!text.trim() || decision === 'skip' || (decision === 'detect' && !isLongEnoughToDetect(text))) {
+      refresh();
+      return;
+    }
+    session.languagePair = pair;
+    const snapshot = beginRequest(session, editor, text);
+    const current = () => {
+      if (!isCurrentRequest(session, snapshot, value => platform.getText(value))) return false;
+      if (!contextEnabled(editor)) {
+        deactivate();
+        return false;
+      }
+      return true;
+    };
+    function show(next: PreviewState) {
+      if (!current()) return;
+      session.preview = next;
+      overlay.show(editor, next);
+    }
+    const detectionProgress = (progress: number) => show({
+      kind: 'downloading',
+      text: detector?.detectionProgressText(progress) ?? `Downloading language detection… ${progress}%`,
+    });
+    try {
+      // Both creates run before the first await so the click keeps user activation.
+      if (activated) {
+        if (decision === 'detect') detector?.prepare(pair.source, detectionProgress);
+        provider.prepare(pair.source, pair.target);
+      }
+      if (decision === 'match') show({ kind: 'translating', text: 'Translating…' });
+      if (decision === 'detect') {
+        if (!detector) {
+          show({ kind: 'unsupported', text: 'Language detection is unavailable in this browser, so NativeType will not guess the input language.' });
+          return;
+        }
+        const outcome = await detector.detect(text, pair.source, {
+          signal: snapshot.signal,
+          activated,
+          onProgress: detectionProgress,
+        });
+        if (!current()) return;
+        if (outcome.status === 'skip') {
+          session.preview = undefined;
+          overlay.hide();
+          return;
+        }
+        if (outcome.status === 'enable') {
+          show({ kind: 'enable', text: outcome.message });
+          return;
+        }
+        if (outcome.status === 'unavailable') {
+          show({ kind: 'unsupported', text: outcome.message });
+          return;
+        }
+        if (outcome.status === 'error') {
+          show({ kind: 'error', text: outcome.message });
+          return;
+        }
+        show({ kind: 'translating', text: 'Translating…' });
+      }
+      const result = await provider.translate(text, {
+        source: pair.source,
+        target: pair.target,
+        signal: snapshot.signal,
+        activated,
+        onProgress: progress => show({ kind: 'downloading', text: provider.downloadProgressText(progress) }),
+      });
+      if (!current()) return;
+      session.cached = { source: text, translation: result, sourceLanguage: pair.source, targetLanguage: pair.target };
+      show({ kind: 'translated', text: result });
+    } catch (error) {
+      if (!current()) return;
+      show(error instanceof TranslationError
+        ? { kind: error.kind, text: error.message }
+        : { kind: 'error', text: 'Translation failed. Please retry.' });
+    }
+  }
+
+  function deactivate() {
+    cancelSession(session);
+    const stopObserving = session.stopObserving;
+    session.stopObserving = undefined;
+    stopObserving?.();
+    session.editor = null;
+    session.sourceText = '';
+    session.composing = false;
+    session.preview = undefined;
+    overlay.hide();
+  }
+
+  function activate(editor: HTMLElement) {
+    if (!contextEnabled(editor)) {
+      if (session.editor) deactivate();
+      return;
+    }
+    if (session.editor !== editor) {
+      deactivate();
+      session.editor = editor;
+      session.stopObserving = platform.observe(editor, {
+        onEdit() {
+          if (!session.editor) return;
+          if (!contextEnabled(session.editor) || platform.getText(session.editor) !== session.sourceText) refresh();
+          overlay.reposition();
+        },
+        onDetach() {
+          deactivate();
+        },
+      });
+    }
+    refresh();
+  }
+
+  function applySettings(next: NativeTypeSettings) {
+    const pairChanged = settings.translation.sourceLanguage !== next.translation.sourceLanguage
+      || settings.translation.targetLanguage !== next.translation.targetLanguage;
+    const sourceChanged = settings.translation.sourceLanguage !== next.translation.sourceLanguage;
+    settings = next;
+    session.languagePair = { source: next.translation.sourceLanguage, target: next.translation.targetLanguage };
+    overlay.setLanguagePair(session.languagePair);
+    if (pairChanged) {
+      session.cached = undefined;
+      cancelSession(session);
+      session.preview = undefined;
+      session.sourceText = '';
+      provider.retainPair(next.translation.sourceLanguage, next.translation.targetLanguage);
+      if (sourceChanged) detector?.reset();
+    }
+    const focused = session.editor ?? platform.findEditor(document.activeElement);
+    if (!focused || !contextEnabled(focused)) {
+      if (session.editor) deactivate();
+      return;
+    }
+    if (session.editor !== focused) activate(focused);
+    else if (pairChanged) refresh();
+  }
+
+  let settingsEpoch = 0;
+  const stopSettings = options.settings?.subscribe(next => {
+    settingsEpoch += 1;
+    if (!sameSettings(settings, next)) applySettings(next);
+  });
+  const loadEpoch = settingsEpoch;
+  void options.settings?.load().then(loaded => {
+    if (loadEpoch !== settingsEpoch) return;
+    if (!sameSettings(settings, loaded)) applySettings(loaded);
+  }).catch(() => {
+    // Keep the startup pair. Storage can fail without blocking the verified zh → en path.
+  });
+
+  host.listen(document, 'focusin', event => {
+    if (event.target === overlay.host) return;
+    const editor = platform.findEditor(event.target);
+    if (editor) activate(editor);
+    else deactivate();
+  });
+  host.listen(document, 'focusout', () => {
+    // Native focus transitions can expose BODY until the next task (including AX clicks).
+    setTimeout(() => {
+      if (document.activeElement !== overlay.host && !platform.findEditor(document.activeElement)) deactivate();
+    });
+  });
+  host.listen(document, 'input', event => {
+    if (session.replacing) return;
+    const editor = platform.findEditor(event.target);
+    if (!editor || platform.findEditor(document.activeElement) !== editor) return;
+    activate(editor);
+  });
+  host.listen(document, 'compositionstart', event => {
+    const editor = platform.findEditor(event.target);
+    if (!editor) return;
+    activate(editor);
+    if (session.editor !== editor) return;
+    session.composing = true;
+    cancelSession(session);
+    session.preview = undefined;
+    overlay.hide();
+  });
+  host.listen(document, 'compositionend', event => {
+    if (platform.findEditor(event.target) !== session.editor) return;
+    session.composing = false;
+    refresh();
+  });
+  host.onInvalidated(() => {
+    stopSettings?.();
+    deactivate();
+    overlay.destroy();
+    provider.dispose();
+    detector?.dispose();
+  });
+  const focused = platform.findEditor(document.activeElement);
+  if (focused) activate(focused);
+}

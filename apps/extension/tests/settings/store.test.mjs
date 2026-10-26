@@ -1,0 +1,65 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { loadTs } from '../load-ts.mjs';
+
+const {
+  createMemoryBackend,
+  createSettingsStore,
+  getDefaultSettings,
+  normalizeSettings,
+  sameSettings,
+} = await loadTs('settings/store.ts');
+
+test('a first run and an upgrade with no saved settings keep Chinese to English and every X context', () => {
+  const defaults = getDefaultSettings();
+  assert.deepEqual(defaults, {
+    schemaVersion: 1,
+    translation: { sourceLanguage: 'zh', targetLanguage: 'en' },
+    contexts: { x: { post: true, reply: true, quote: true } },
+  });
+  for (const stored of [undefined, null, {}, { schemaVersion: 1 }]) {
+    assert.deepEqual(normalizeSettings(stored), defaults);
+  }
+});
+
+test('saved settings round-trip and sync across two readers', async () => {
+  const backend = createMemoryBackend();
+  const first = createSettingsStore(backend);
+  const second = createSettingsStore(backend);
+  const seen = [];
+  second.subscribe(value => seen.push(value));
+  const next = normalizeSettings({
+    translation: { sourceLanguage: 'ja', targetLanguage: 'en' },
+    contexts: { x: { post: true, reply: false, quote: true } },
+  });
+  await first.save(next);
+  assert.deepEqual(await first.load(), next);
+  assert.deepEqual(await second.load(), next);
+  assert.equal(sameSettings(seen.at(-1), next), true);
+  const reopened = createSettingsStore(createMemoryBackend(backend.current()));
+  assert.deepEqual(await reopened.load(), next);
+});
+
+test('equal languages and corrupt storage fall back without throwing', () => {
+  assert.deepEqual(normalizeSettings({
+    translation: { sourceLanguage: 'en', targetLanguage: 'en' },
+  }).translation, { sourceLanguage: 'en', targetLanguage: 'zh' });
+  assert.deepEqual(normalizeSettings({
+    translation: { sourceLanguage: 'nope', targetLanguage: 4 },
+    contexts: { x: { post: 'yes', reply: false, quote: null } },
+  }), {
+    schemaVersion: 1,
+    translation: { sourceLanguage: 'zh', targetLanguage: 'en' },
+    contexts: { x: { post: true, reply: false, quote: true } },
+  });
+  assert.equal(normalizeSettings({ translation: { sourceLanguage: 'fr' } }).translation.targetLanguage, 'en');
+  assert.deepEqual(normalizeSettings('broken'), getDefaultSettings());
+});
+
+test('storage reads local extension settings and does not add a network client', async () => {
+  const source = await readFile(new URL('../../settings/chrome.ts', import.meta.url), 'utf8');
+  assert.match(source, /browser\.storage\.local/);
+  assert.match(source, /SETTINGS_STORAGE_KEY = 'settings'/);
+  assert.doesNotMatch(source, /fetch\(|XMLHttpRequest|WebSocket|analytics|telemetry/);
+});

@@ -2,6 +2,8 @@
 
 **Status: v0’s text-only Chinese → English → Replace flow passed on real desktop Chrome and X with 0.0.1. The 0.0.2 cleanup passed the local regression fixture; it has not been retested on X.**
 
+Phase 1 language settings and X context switches are recorded at the end of this file. They were not retested on live X.
+
 ## Build and automated checks
 
 - `pnpm typecheck`: passed with WXT’s strict TypeScript configuration.
@@ -58,3 +60,37 @@ After reloading the latest unpacked build and X, the two-line New Post example d
 - Chrome translation quality and paragraph layout are model output. For example, Chrome joined the two-line source into one English paragraph in the New Post check.
 - X may change its semantic attributes or paste/selection handling. These are experimental integrations, not a compatibility guarantee for future X releases.
 - Light/dark matching and scroll/resize positioning are implemented; real-X checks were in the user’s current dark theme. Tall composers may require scrolling to reach the preview.
+
+## Phase 1 — language settings and X contexts (2026-10-26)
+
+Version remains 0.0.3. This pass was not published and was not committed. The v0 real-X results above are unchanged; Phase 1 was not repeated on live X.
+
+### Automated checks
+
+- `node --test tests/translator.test.mjs`: 39 tests passed. Adds settings defaults and corrupt-storage fallback, language matching, detector confidence and download gating, X context decisions, language-pair stale requests, translator pair isolation, and the `storage` permission boundary.
+- `pnpm typecheck`: passed.
+- `pnpm build`: passed. Production manifest is Chrome MV3, version 0.0.3, `permissions: ["storage"]`, no `host_permissions`, `options_ui.open_in_tab: true`, a background service worker that opens Settings from the toolbar icon, no popup, and a content script still limited to `https://x.com/*`. Built size 64.53 kB. Tests and the Settings fixture are not packaged.
+- `tests/browser.html`: 57 local regression checks passed in system Chrome through Playwright. The new checks cover reply and quote switches, quote versus reply DOM fixtures, a language-pair change that cannot reuse the previous English preview, detector mismatch, unavailable detection, and Enable translation for detection. The fixture still uses a fake Translator and a minimal paste adapter. It does not verify Chrome’s model or X’s React editor.
+- Settings UI: `tests/settings-page.html` was driven in system Chrome at 1280px and 375px, in light and dark, including auto-save, remount, equal-language separation, a second writer updating the form, keyboard tab and space, save failure, and load failure. The same Chrome then loaded the production unpacked extension. Its options page opened with Chinese → English and all three contexts on, kept Korean and a disabled Quote switch across reload, and mirrored a New posts change into a second Settings tab through `chrome.storage.local`.
+
+### Not verified on this pass
+
+- Live X classification of the home composer, the compose page, an inline reply, a reply dialog, and a quote dialog. The DOM signals are covered with fixtures, not with x.com’s current markup.
+- Chrome’s real Language Detector inside the extension content script.
+- Chrome Translator packs for pairs other than the historical Chinese → English flow, including a cold download.
+- An edit-post composer. It is not classified separately and may be treated as a new post.
+- Publishing. NativeType still has no path that clicks Post.
+
+## Monorepo move (2026-10-26)
+
+The extension now lives in `apps/extension`. `apps/api` and `packages/contracts` were added empty of product behavior. This move did not change the production bundle: every file in `dist/chrome-mv3` has the same SHA-256 as the build from before the move, and `manifest.json` is identical. From the repository root, `pnpm typecheck`, `pnpm test:extension` (39 passed), `pnpm build`, and `pnpm zip` passed. `pnpm install --frozen-lockfile` passed. The dev server started and wrote `apps/extension/dist/chrome-mv3-dev`; that development manifest adds WXT's usual reload permissions and is not the store zip. Live X was not retested for this move.
+
+## Review fixes (2026-10-26)
+
+- Settings saves are serialized and keep the latest edit, including a quick revert while an earlier write is pending. Storage echoes and slow initial loads cannot overwrite newer local changes. Failed saves keep the current form available for retry.
+- The active composer observes local quote/reply structure changes as well as text edits. Entering a disabled context cancels pending work, hides the preview, and restores input height. Replace rechecks the context on click and before the X adapter sends the paste, including changes during its selection delay.
+- A Traditional Chinese trigger receiving the older detector's generic `zh` result displays a Chrome 151+ upgrade message and the option to use Chinese as the trigger. It does not guess the script. Script-aware results still match Traditional Chinese and skip Simplified Chinese.
+- Detector initialization cleanup handles rejected promises, including failed creation and reset during initialization.
+- `pnpm test:extension`: 55 passed, including 16 new Node regression tests. The new DOM fixture uses fixed geometry and simulated mutation delivery to test control flow; it does not validate visual layout or X's editor internals.
+- `pnpm typecheck` and `pnpm build`: passed. The production bundle is 65.33 kB; version and manifest permissions are unchanged.
+- Chrome was not launched for this review or these fixes. The browser fixture, live X, and Chrome's real models were not rerun.

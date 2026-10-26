@@ -1,0 +1,10 @@
+{
+  "name": "@nativetype/api",
+  "description": "Future Cloudflare Workers API for NativeType. Not implemented.",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "@nativetype/contracts": "workspace:*"
+  }
+}
