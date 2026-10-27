@@ -58,6 +58,22 @@ export function allowedOrigins(configured: string | undefined): ReadonlySet<stri
   return origins;
 }
 
+export interface CorsBindings {
+  PRODUCTION_ID?: string;
+  DEV_ID?: string;
+  ALLOWED_ORIGINS?: string;
+}
+
+/** Compose the extension origins here; .dev.vars does not expand variables. */
+export function resolveAllowedOrigins(bindings: CorsBindings): string {
+  const origins = new Set(allowedOrigins(bindings.ALLOWED_ORIGINS));
+  for (const value of [bindings.PRODUCTION_ID, bindings.DEV_ID]) {
+    const id = value?.trim();
+    if (id && /^[a-p]{32}$/.test(id)) origins.add(`chrome-extension://${id}`);
+  }
+  return [...origins].join(',');
+}
+
 export function corsHeaders(request: Request, configured: string | undefined): Headers {
   const headers = new Headers();
   const origin = request.headers.get('origin');

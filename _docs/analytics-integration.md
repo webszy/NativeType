@@ -1,12 +1,12 @@
 # Extension Analytics Integration
 
-Implemented against the existing Worker and `@nativetype/contracts`. The Worker source, Wrangler configuration, D1 schema and production data are unchanged. Statistics are optional pseudonymous measurement of participating installations, not a count of people or an absolute anonymity guarantee.
+Implemented against the existing Worker and `@nativetype/contracts`. Event ingestion and the D1 schema are unchanged. The merged Worker configuration derives allowed extension origins from `PRODUCTION_ID` and `DEV_ID`; see [origin configuration and browser checks](2026-10-27-api-origins-verification.md). Statistics are optional pseudonymous measurement of participating installations, not a count of people or an absolute anonymity guarantee.
 
 ## Data path and event boundaries
 
 ```text
 Translation Controller -> Analytics Client -> internal runtime message
-    -> existing Background -> persisted consent + installation ID -> POST /v1/events
+    -> existing Background -> persisted consent + installation ID -> POST /api/v1/events
 ```
 
 | Event | Actual trigger in `apps/extension/core/controller.ts` |
@@ -30,15 +30,15 @@ Background fetch bodies have exactly `installId` and `event`. Text, translations
 
 ## Configuration and permissions
 
-`apps/extension/.env.production` contains the public production origin from `apps/api/wrangler.jsonc`: `WXT_ANALYTICS_API_BASE_URL=https://api.typewith.si`. It is not a credential. No HMAC secret, Cloudflare token or other server secret belongs in extension files.
+`apps/extension/.env.production` contains the public production base URL: `WXT_ANALYTICS_API_BASE_URL=https://typewith.si/api`. The base path is preserved, producing `https://typewith.si/api/v1/events`. That path is the Nuxt server route on the same Worker as the website. It is not a credential. No HMAC secret, Cloudflare token or other server secret belongs in extension files.
 
-Copy `.env.development.example` to `.env.development.local` in `apps/extension` for development. Set a separate HTTPS origin. With no valid origin, development does not report. Both `api.typewith.si` and `nativetype-api.cycceme.workers.dev` are rejected outside production mode, including hostname case/trailing-dot variants. HTTP, credentials, query strings, fragments and URL paths are rejected. Production rejects local/test origins and fails the build for missing/invalid configuration. The same validator derives the Background endpoint and manifest permission.
+Copy `.env.development.example` to `.env.development.local` in `apps/extension` for development. Set a separate HTTPS base URL, optionally including a path prefix. With no valid base URL, development does not report. The Worker custom domain is only `typewith.si`, and API paths are `https://typewith.si/api/v1/*`. `api.typewith.si` is not routed. `typewith.si`, `api.typewith.si` and `nativetype-api.cycceme.workers.dev` are rejected outside production mode, including hostname case/trailing-dot variants. HTTP, credentials, query strings and fragments are rejected. Production rejects local/test origins and fails the build for missing/invalid configuration. The same validator derives the Background endpoint and manifest permission.
 
-The generated production Manifest V3 has `permissions: ["storage"]`, `host_permissions: ["https://api.typewith.si/*"]`, and the original `https://x.com/*` content-script match. It has no broad host wildcard. No local development host is included in the release.
+The generated production Manifest V3 has `permissions: ["storage"]`, `host_permissions: ["https://typewith.si/*"]`, and the original `https://x.com/*` content-script match. It has no broad host wildcard. No local development host is included in the release.
 
 The added required host permission can produce Chrome's install/update permission warning, potentially requiring existing users to re-enable the extension. The statistics switch itself opens no permission dialog. Chrome documents both [host permission warnings](https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions) and [service-worker cross-origin fetch permissions](https://developer.chrome.com/docs/extensions/develop/concepts/network-requests).
 
-Worker CORS is unchanged: exact allowlisted preflights return 204; other preflights return 403; ordinary POST is processed even without an allowed Origin. Chrome extension service-worker requests with host permission use extension cross-origin privileges; page/content-script fetches do not. A successful Node/Worker test does not prove Chrome's actual permission, Origin or CORS behavior. Verify the real development extension before release. If a browser path requires a CORS allowlist entry, the operator must configure the actual extension origin separately; do not guess it or loosen the Worker.
+Worker CORS behavior is unchanged: exact allowlisted preflights return 204; other preflights return 403; ordinary POST is processed even without an allowed Origin. The Worker derives extension origins from `PRODUCTION_ID` and `DEV_ID`, configured locally in `.dev.vars` or for deployment in `wrangler.jsonc`. Chrome extension service-worker requests with host permission use extension cross-origin privileges; page/content-script fetches do not. A successful Node/Worker test does not prove Chrome's actual permission, Origin or CORS behavior. Verify the real development extension before release. Configure the actual extension ID; do not guess it or loosen the Worker.
 
 ## Automated verification
 
@@ -46,7 +46,7 @@ Run from the repository root:
 
 ```sh
 pnpm test:extension
-pnpm test:api
+pnpm test:web
 pnpm typecheck
 pnpm build:extension
 ```
@@ -55,24 +55,24 @@ Extension tests cover consent normalization, persisted UI state and cross-tab up
 
 ## Manual local integration
 
-Use a separate Chrome test profile and an unpacked **development** extension. Keep production statistics disabled in any other NativeType installation. Never use `--remote`, `deploy:api`, the production endpoints, or production D1 for these steps.
+Use a separate Chrome test profile and an unpacked **development** extension. Keep production statistics disabled in any other NativeType installation. Never use `--remote`, `deploy:web`, the production endpoints, or production D1 for these steps.
 
-1. Prepare `apps/api/.dev.vars` from the existing `.dev.vars.example`. Generate a local-only HMAC secret with `openssl rand -base64 32` and put it in that gitignored file. Use the actual unpacked `chrome-extension://<id>` as `ALLOWED_ORIGINS` after step 4; do not invent an ID. No secret goes in extension environment files.
-2. Apply the existing migration to **local** D1, then start the existing Worker over HTTPS:
+1. Prepare `apps/web/.dev.vars` from `.dev.vars.example`. Generate a local-only HMAC secret with `openssl rand -base64 32` and put it in that gitignored file. Set `DEV_ID` to the actual unpacked extension ID after step 4; the server adds `chrome-extension://` automatically. `.dev.vars` does not expand variable references. No secret goes in extension environment files.
+2. Apply the existing migration to **local** D1, then start the website Worker over HTTPS. The extension appends `/v1/events` to the base path, so the base must end in `/api`:
 
    ```sh
-   pnpm db:migrate:api:local
-   pnpm --filter @nativetype/api exec wrangler dev --local --ip 127.0.0.1 --port 8787 --local-protocol https
+   pnpm db:migrate:web:local
+   pnpm --filter @nativetype/web exec nuxt dev --https --port 8787 --host 127.0.0.1
    ```
 
-   Use a trusted local certificate with Wrangler's `--https-key-path`/`--https-cert-path` if Chrome rejects its default certificate. Keep TLS verification enabled. Alternatively, use a separate HTTPS test Worker with a separate test D1; do not reuse a production database binding.
-3. Create `apps/extension/.env.development.local` containing `WXT_ANALYTICS_API_BASE_URL=https://localhost:8787`. Start `pnpm dev:extension`, or build without auto-launching Chrome:
+   Trust the local certificate if Chrome rejects it. Keep TLS verification enabled. Do not point this exercise at production D1.
+3. Create `apps/extension/.env.development.local` containing `WXT_ANALYTICS_API_BASE_URL=https://127.0.0.1:8787/api`. Start `pnpm dev:extension`, or build without auto-launching Chrome:
 
    ```sh
    pnpm --filter @nativetype/extension exec wxt build --mode development
    ```
 
-4. Load `apps/extension/dist/chrome-mv3-dev` through `chrome://extensions` if not using WXT's dev browser. Note the real extension ID. Update the local Worker's `ALLOWED_ORIGINS` and restart it if necessary. Inspect this development manifest: its analytics host must be localhost/test, never production.
+4. Load `apps/extension/dist/chrome-mv3-dev` through `chrome://extensions` if not using WXT's dev browser. Note the real extension ID. Update `DEV_ID` in the local Worker's `.dev.vars` and restart it if necessary. Inspect this development manifest: its analytics host must be localhost/test, never production.
 5. Open the extension's Service Worker DevTools Network panel with Preserve log, plus Settings. Confirm **Privacy & Analytics → Share anonymous usage statistics** is Off. Translate in X and Replace. Preview/replacement must work; there must be no `/v1/events` request and no `analytics.installId` in extension local storage. View only key presence in screenshots/logs; do not print the ID.
 6. Enable statistics. Confirm local storage now contains the ID key; simply enabling must not POST an event. Refresh Settings to confirm the switch stays On. Keep the existing X tab open to test live synchronization.
 7. Enter one new Chinese draft in an enabled Post/Reply/Quote context, wait for Preview, then click Replace once. Expect one `translation_success` and one `replace_success`. Each request must contain only `installId` and `event`; response must be empty 204. Repositioning or re-rendering Preview must not create another success request.
@@ -90,7 +90,7 @@ Use a separate Chrome test profile and an unpacked **development** extension. Ke
 9. Query **local** D1:
 
    ```sh
-   pnpm --filter @nativetype/api exec wrangler d1 execute nativetype-analytics --local --command "SELECT date, COUNT(*) AS installs, SUM(translation_count) AS translations, SUM(replace_count) AS replacements, SUM(error_count) AS errors FROM usage_daily GROUP BY date ORDER BY date;"
+   pnpm --filter @nativetype/web exec wrangler d1 execute nativetype-analytics --local --command "SELECT date, COUNT(*) AS installs, SUM(translation_count) AS translations, SUM(replace_count) AS replacements, SUM(error_count) AS errors FROM usage_daily GROUP BY date ORDER BY date;"
    ```
 
    Compare deltas against a baseline. For exactly steps 7–8 before Retry, the expected delta is one of each counter and one participating installation. Retry adds another translation success. Extra manual translations each add their own count; do not assume an empty database. Inspecting the schema may confirm that rows use `install_hash`, not the raw ID.
@@ -107,7 +107,7 @@ The repository contains no saved dashboard Privacy Practices form. Before publis
 - Publish the updated privacy policy at the existing policy URL and verify the store link opens that revision.
 - Remove any listing claim that NativeType never sends telemetry. Disclose voluntary counts and a persistent random installation identifier. Do not select a blanket “no data collected” solely because there is no name/account ID. Review the form's identifier/personal-information and user-activity definitions for the random ID and three events, and preserve accurate disclosure of existing local composer processing. This is a content checklist, not a verified dashboard submission or review outcome.
 - Explain `storage`: “Stores translation and X context preferences, optional analytics consent, and a random installation ID created only after opt-in. Drafts and translations are not saved.”
-- Explain `https://api.typewith.si/*`: “Allows the background service worker to submit optional pseudonymous usage counts to NativeType's own Cloudflare Worker. Reports contain only a random installation ID and one of three event names; they exclude text, translations, URLs and account information.”
+- Explain `https://typewith.si/*`: “Allows the background service worker to submit optional pseudonymous usage counts to NativeType's own Cloudflare Worker. Reports contain only a random installation ID and one of three event names; they exclude text, translations, URLs and account information.”
 - Confirm the existing X host justification covers composer reading, Preview and user-requested Replace. No broader browsing access is added.
 - Remote code remains unused: this integration sends JSON and executes no downloaded analytics JavaScript. Keep the form consistent with the final package and applicable limited-use certifications.
 

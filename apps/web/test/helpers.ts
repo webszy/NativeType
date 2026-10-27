@@ -1,7 +1,8 @@
 import { env, SELF } from 'cloudflare:test';
 import { expect } from 'vitest';
-import { hashInstallId } from '../src/analytics';
-import { handleEventRequest } from '../src/events';
+import { hashInstallId } from '../server/utils/analytics';
+import { handleEventRequest } from '../server/utils/events';
+import { resolveAllowedOrigins } from '../server/utils/http';
 
 export const INSTALL_A = '11111111-1111-4111-8111-111111111111';
 export const INSTALL_B = '22222222-2222-4222-8222-222222222222';
@@ -11,13 +12,13 @@ export const INSTALL_E = '55555555-5555-4555-8555-555555555555';
 export const INSTALL_H = '66666666-6666-4666-8666-666666666666';
 
 export function allowedOrigin(): string {
-  const origin = env.ALLOWED_ORIGINS.split(',')[0]?.trim();
-  if (!origin) throw new Error('ALLOWED_ORIGINS is empty in the test binding');
+  const origin = resolveAllowedOrigins(env).split(',')[0]?.trim();
+  if (!origin) throw new Error('No allowed origin is configured in the test bindings');
   return origin;
 }
 
 export function eventsUrl(): string {
-  return 'https://nativetype-api.test/v1/events';
+  return 'https://nativetype-api.test/api/v1/events';
 }
 
 export function eventRequest(

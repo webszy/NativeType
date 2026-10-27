@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -17,8 +18,8 @@ import { experimental_readRawConfig } from 'wrangler';
 
 const root = new URL('../', import.meta.url);
 const readme = readFileSync(new URL('README.md', root), 'utf8');
-const queries = readFileSync(new URL('src/stats-sql.ts', root), 'utf8');
-const analytics = readFileSync(new URL('src/analytics.ts', root), 'utf8');
+const queries = readFileSync(new URL('server/utils/stats-sql.ts', root), 'utf8');
+const analytics = readFileSync(new URL('server/utils/analytics.ts', root), 'utf8');
 const { rawConfig: wrangler } = experimental_readRawConfig({
   config: fileURLToPath(new URL('wrangler.jsonc', root)),
 });
@@ -76,19 +77,28 @@ test('Wrangler rate limit matches the Worker constants', () => {
 
 test('Wrangler runs retention daily and requires the analytics secret', () => {
   assert.deepEqual(wrangler.triggers.crons, ['0 3 * * *']);
+  assert.equal(wrangler.routes.some((route) => route.pattern === 'typewith.si' && route.custom_domain === true), true);
+  assert.equal(wrangler.routes.some((route) => route.pattern === 'api.typewith.si'), false);
   assert.equal(wrangler.secrets.required.includes('ANALYTICS_HMAC_SECRET'), true);
-  assert.equal(wrangler.vars.ALLOWED_ORIGINS.split(',').some((origin) => origin.trim() === '*'), false);
+  for (const id of [wrangler.vars.PRODUCTION_ID, wrangler.vars.DEV_ID]) {
+    assert.match(id, /^[a-p]{32}$/);
+  }
 });
 
 test('remote migration uses the database id guard', () => {
   const pkg = JSON.parse(readFileSync(new URL('package.json', root), 'utf8'));
-  assert.equal(pkg.scripts.deploy, 'wrangler deploy');
+  assert.equal(pkg.scripts.build, 'nuxt build');
+  assert.equal(pkg.scripts.deploy, 'nuxt build && wrangler deploy');
   assert.equal(
     pkg.scripts['db:migrate:remote'],
     'node scripts/require-database-id.mjs wrangler d1 migrations apply nativetype-analytics --remote',
   );
   assert.equal(pkg.scripts['db:migrate:local'].includes('require-database-id'), false);
-  assert.equal(pkg.scripts.build, 'wrangler deploy --dry-run');
+  assert.equal(pkg.scripts['db:migrate:local'].includes('--local'), true);
+  assert.doesNotMatch(JSON.stringify(pkg.dependencies ?? {}), /hono/i);
+  assert.equal(existsSync(new URL('server/api/v1/events.ts', root)), true);
+  assert.match(readFileSync(new URL('server/api/v1/events.ts', root), 'utf8'), /handleEventRequest/);
+  assert.match(readFileSync(new URL('server/plugins/retention.ts', root), 'utf8'), /handleScheduled/);
 });
 
 for (const [name, config] of [

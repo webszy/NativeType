@@ -7,7 +7,7 @@ export const analyticsEventTypes = [
 
 export type AnalyticsEventType = (typeof analyticsEventTypes)[number];
 
-/** Own properties allowed on `POST /v1/events`. Extra properties are rejected. */
+/** Own properties allowed on `POST /api/v1/events`. Extra properties are rejected. */
 export const analyticsRequestFields = ['installId', 'event'] as const;
 
 export interface AnalyticsEventRequest {

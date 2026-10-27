@@ -2,15 +2,17 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "nativetype-api",
   "account_id": "d44223ee73c4210abdaf28c3a7dcffe6",
-  "main": "src/index.ts",
   "compatibility_date": "2026-10-26",
   "compatibility_flags": ["nodejs_compat"],
   "upload_source_maps": true,
-  // Deploy with the Cloudflare account that owns typewith.si.
+  // Same Worker as the former API: the next deploy keeps the secret and D1 binding.
+  // Nitro's cloudflare_module preset fills `main` and `assets` in the generated deploy config.
+  // The only custom domain is typewith.si. API paths are https://typewith.si/api/v1/*.
+  // Do not attach api.typewith.si. Do not delete the D1 database.
   "workers_dev": true,
   "routes": [
     {
-      "pattern": "api.typewith.si",
+      "pattern": "typewith.si",
       "custom_domain": true
     }
   ],
@@ -27,10 +29,11 @@
       "head_sampling_rate": 1
     }
   },
-  // Production browser allowlist. Empty until the published extension id is known.
-  // Local development overrides this from .dev.vars. A wildcard origin is ignored by the Worker.
+  // The Worker composes ALLOWED_ORIGINS from these two extension IDs.
+  // .dev.vars can override each ID locally; no variable expansion is required.
   "vars": {
-    "ALLOWED_ORIGINS": ""
+    "PRODUCTION_ID": "emicomnfbabkhcpphlihhbddhlmkdhfk",
+    "DEV_ID": "eoiplhjpakggmbahkkkcaacdcbdfklbf"
   },
   "secrets": {
     "required": ["ANALYTICS_HMAC_SECRET"]

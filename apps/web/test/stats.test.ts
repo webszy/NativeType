@@ -1,13 +1,13 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { addUtcDays, windowStartUtcDate } from '../src/dates';
+import { addUtcDays, windowStartUtcDate } from '../server/utils/dates';
 import {
   dailyTrendSql,
   rollingMauSql,
   rollingTotalsSql,
   rollingWauSql,
   todayDauSql,
-} from '../src/stats-sql';
+} from '../server/utils/stats-sql';
 import {
   clearUsage,
   INSTALL_A,

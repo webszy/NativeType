@@ -1,0 +1,15 @@
+NativeType ships two SIL Open Font License 1.1 families. OFL.txt is the license.
+
+Inter, Latin subset
+Copyright 2020 The Inter Project Authors
+https://github.com/rsms/inter
+Reserved font name: Inter
+
+Geist Mono, Latin subset
+Copyright 2024 Vercel, Inc.
+https://github.com/vercel/geist-font
+The same SIL Open Font License, Version 1.1 applies.
+Reserved font name: Geist
+
+These files are the Latin subsets already produced for the local Peelmark template.
+Chinese text on the site uses fonts installed on the visitor's system.

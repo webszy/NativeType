@@ -15,7 +15,7 @@ try {
   ));
   databaseId = database?.database_id;
 } catch {
-  console.error('Refusing to continue: apps/api/wrangler.jsonc is not a valid Wrangler configuration.');
+  console.error('Refusing to continue: apps/web/wrangler.jsonc is not a valid Wrangler configuration.');
   process.exit(1);
 }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -23,7 +23,7 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 if (typeof databaseId !== 'string' || !uuid.test(databaseId)) {
   console.error(
     [
-      'Refusing to continue: the DB binding for nativetype-analytics has no valid D1 database_id in apps/api/wrangler.jsonc.',
+      'Refusing to continue: the DB binding for nativetype-analytics has no valid D1 database_id in apps/web/wrangler.jsonc.',
       'Remote migration would resolve nativetype-analytics by name in the logged-in account.',
       'Run `wrangler d1 create nativetype-analytics` and paste the printed id first.',
     ].join('\n'),

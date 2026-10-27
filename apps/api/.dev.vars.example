@@ -1,5 +1,0 @@
-# Copy to .dev.vars. Wrangler loads .dev.vars for local dev and does not upload it.
-# Generate the secret with: openssl rand -base64 32
-# Use the unpacked extension origin from chrome://extensions. Do not use *.
-ANALYTICS_HMAC_SECRET=
-ALLOWED_ORIGINS=chrome-extension://id

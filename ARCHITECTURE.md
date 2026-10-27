@@ -2,7 +2,7 @@
 
 NativeType translates the focused X composer with Chrome's built-in translator, shows a preview, and replaces the draft only when the user chooses Replace. The default pair is Chinese → English. Settings can change the pair and can turn New Post, Reply, or Quote Post off independently.
 
-The Chrome extension is `apps/extension`. `apps/api` is the existing Cloudflare Worker for optional pseudonymous usage events. The extension reports only after the user opts in. `packages/contracts` exports the event types and runtime validator used by both packages. Translation still happens only in the extension.
+The Chrome extension is `apps/extension`. `apps/web` is the Nuxt site and the Cloudflare Worker for optional pseudonymous usage events. The extension reports only after the user opts in. `packages/contracts` exports the event types and runtime validator used by both packages. Translation still happens only in the extension.
 
 ## Modules
 
@@ -37,10 +37,10 @@ The X manifest match stays explicit in the content script. Registry code does no
 
 ## API
 
-`apps/api` exposes `POST /v1/events` and a daily D1 retention cron. The event names and the error body live in `@nativetype/contracts`. The Worker checks the body again at runtime. It stores one aggregated row per UTC date and hashed install id. There is no translate route in this package yet. See `apps/api/README.md`.
+`apps/web` exposes `POST /api/v1/events` and a daily D1 retention cron on the same Worker as the website. The event names and the error body live in `@nativetype/contracts`. The Worker checks the body again at runtime. It stores one aggregated row per UTC date and hashed install id. There is no translate route. See `apps/web/README.md`.
 
 The controller emits `translation_success` after a current completed result enters Preview; cache re-renders do not emit. A verified `PlatformAdapter.replaceText()` success emits `replace_success`. A current provider execution ending in an error emits `translation_error`; detection, activation prompts, aborts and stale results do not. These calls never await a statistics result.
 
 Background reads persisted consent again for each event, serializes short ID storage operations, and sends exactly `{ installId, event }`. The random UUID persists across background restarts and normal updates. Disabling aborts pending requests and removes it; re-enabling generates another. A request has a four-second timeout, accepts only 204 as success, omits credentials and referrers, rejects redirects and never retries. At most eight reports can be pending in memory; excess reports are dropped. No event is persisted or replayed.
 
-`WXT_ANALYTICS_API_BASE_URL` is a public HTTPS origin. Production builds require a valid value; development has no fallback and rejects the two known production hosts. The same validator controls the generated host permission and runtime endpoint. See `_docs/analytics-integration.md` for local D1 checks and publication disclosures.
+`WXT_ANALYTICS_API_BASE_URL` is a public HTTPS base URL. Production uses `https://typewith.si/api`, preserving `/api` when appending `/v1/events`. Production builds require a valid value; development has no fallback and rejects known production hosts. The same validator controls the generated host permission and runtime endpoint. See `_docs/analytics-integration.md` for local D1 checks and publication disclosures.

@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   analyticsRateLimitPerMinute,
   type UsageDatabase,
-} from '../src/analytics';
-import { utcDateString } from '../src/dates';
-import { handleEventRequest } from '../src/events';
-import { MAX_BODY_BYTES } from '../src/http';
+} from '../server/utils/analytics';
+import { utcDateString } from '../server/utils/dates';
+import { handleEventRequest } from '../server/utils/events';
+import { MAX_BODY_BYTES } from '../server/utils/http';
 import {
   allowedOrigin,
   clearUsage,
@@ -29,7 +29,7 @@ async function storedHash(installId: string): Promise<string | null> {
   return row?.install_hash ?? null;
 }
 
-describe('POST /v1/events', () => {
+describe('POST /api/v1/events', () => {
   it('writes a valid event and returns 204 only after the insert', async () => {
     const origin = allowedOrigin();
     const response = await postEvent(INSTALL_A, 'translation_success', { origin });
@@ -146,7 +146,7 @@ describe('POST /v1/events', () => {
         expect(JSON.parse(await response.text())).toEqual({ error: 'method_not_allowed' });
       }
     }
-    for (const path of ['/v1/translate', '/v1/retention', '/cdn-cgi/local/scheduled']) {
+    for (const path of ['/api/v1/translate', '/api/v1/retention', '/cdn-cgi/local/scheduled']) {
       const response = await send(new Request(`https://nativetype-api.test${path}`, { method: 'POST' }));
       expect(response.status).toBe(404);
       expect(JSON.parse(await response.text())).toEqual({ error: 'not_found' });
@@ -201,6 +201,25 @@ describe('POST /v1/events', () => {
       { ...env, ALLOWED_ORIGINS: `${origin}, ${second}` },
     );
     expect(either.headers.get('access-control-allow-origin')).toBe(second);
+  });
+
+  it('derives preflight origins from separate production and development extension IDs', async () => {
+    const productionId = 'c'.repeat(32);
+    const devId = 'd'.repeat(32);
+    const bindings = { ...env, ALLOWED_ORIGINS: undefined, PRODUCTION_ID: productionId, DEV_ID: devId };
+    for (const [origin, status] of [
+      [`chrome-extension://${productionId}`, 204],
+      [`chrome-extension://${devId}`, 204],
+      ['https://unlisted.example', 403],
+    ] as const) {
+      const response = await handleEventRequest(new Request(eventsUrl(), {
+        method: 'OPTIONS',
+        headers: { origin, 'access-control-request-method': 'POST' },
+      }), bindings);
+      expect(response.status).toBe(status);
+      expect(response.headers.get('access-control-allow-origin')).toBe(status === 204 ? origin : null);
+      await response.arrayBuffer();
+    }
   });
 
   it('limits each hashed install and does not charge invalid requests', async () => {

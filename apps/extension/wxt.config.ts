@@ -10,7 +10,7 @@ export default defineConfig({
   manifest: ({ mode, command }) => {
     const endpoint = analyticsEndpoint(process.env.WXT_ANALYTICS_API_BASE_URL, mode);
     if (command === 'build' && mode === 'production' && !endpoint) {
-      throw new Error('Production builds require a valid HTTPS WXT_ANALYTICS_API_BASE_URL origin.');
+      throw new Error('Production builds require a valid HTTPS WXT_ANALYTICS_API_BASE_URL base URL.');
     }
     return {
       name: 'NativeType',

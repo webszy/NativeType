@@ -22,3 +22,6 @@ logs
 .env
 .env.*
 !.env.example
+
+# Default `wrangler types` output. The checked file is test/worker-configuration.d.ts.
+/worker-configuration.d.ts

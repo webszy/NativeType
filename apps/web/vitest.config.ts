@@ -12,7 +12,7 @@ export default defineConfig({
     cloudflareTest(async () => {
       const migrations = await readD1Migrations(path.join(root, 'migrations'));
       return {
-        wrangler: { configPath: './wrangler.jsonc' },
+        wrangler: { configPath: './test/wrangler.jsonc' },
         miniflare: {
           bindings: {
             TEST_MIGRATIONS: migrations,

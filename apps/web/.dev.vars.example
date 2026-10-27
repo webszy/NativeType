@@ -1,0 +1,6 @@
+# Copy to .dev.vars for local overrides; deploy values belong in wrangler.jsonc.
+# The Worker composes extension origins from these IDs; .dev.vars does not expand variables.
+PRODUCTION_ID=emicomnfbabkhcpphlihhbddhlmkdhfk
+DEV_ID=eoiplhjpakggmbahkkkcaacdcbdfklbf
+# Generate a local secret with: openssl rand -base64 32
+ANALYTICS_HMAC_SECRET=

@@ -21,7 +21,7 @@ pnpm workspaces, without Turborepo or Nx:
 
 ```text
 apps/extension/        Chrome extension (WXT)
-apps/api/              Cloudflare Worker for pseudonymous usage events
+apps/web/              Nuxt 4 website and analytics API
 packages/contracts/    Shared types for the extension and API
 ```
 
@@ -41,7 +41,7 @@ pnpm --filter @nativetype/extension build
 pnpm --filter @nativetype/extension test
 ```
 
-`pnpm dev`, `pnpm build`, and `pnpm zip` remain the root aliases for the extension. `pnpm typecheck` also checks `@nativetype/contracts` and `@nativetype/api`. Optional statistics reuse the contracts package and existing API. API commands are `pnpm dev:api`, `pnpm test:api`, `pnpm build:api`, and `pnpm db:migrate:api:local`. Remote migration and deploy are documented in `apps/api/README.md` and are not part of the extension workflow.
+`pnpm dev`, `pnpm build`, and `pnpm zip` remain the root aliases for the extension. `pnpm typecheck` also checks `@nativetype/contracts` and `@nativetype/web`. Optional statistics reuse the contracts package and the Nuxt server route `POST /api/v1/events`. Website and API commands are `pnpm dev:web`, `pnpm test:web`, `pnpm build:web`, and `pnpm db:migrate:web:local`. Remote migration and deploy are documented in `apps/web/README.md` and are not part of the extension workflow.
 
 ## Development
 
@@ -52,7 +52,7 @@ pnpm dev:extension
 
 WXT starts the development extension from `apps/extension`. Open X in that browser and sign in if needed. Production permissions below refer to `pnpm build`; WXT's development tooling may add development-only access.
 
-Development statistics have no default endpoint. Copy `apps/extension/.env.development.example` to `.env.development.local` in the same directory and set `WXT_ANALYTICS_API_BASE_URL` to a separate HTTPS local/test Worker origin. Both known production hosts are rejected outside production mode. Production builds read the public URL `https://api.typewith.si` from `.env.production` and fail if it is missing or invalid. These URLs are not credentials; server secrets must never be added to extension environment files. See [Analytics integration and manual checks](_docs/analytics-integration.md).
+Development statistics have no default endpoint. Copy `apps/extension/.env.development.example` to `.env.development.local` in the same directory and set `WXT_ANALYTICS_API_BASE_URL` to a separate HTTPS local/test Worker base URL. Known production hosts are rejected outside production mode. Production builds read the public base URL `https://typewith.si/api` from `.env.production` and fail if it is missing or invalid. The base path is preserved, so statistics are sent to `https://typewith.si/api/v1/events`. These URLs are not credentials; server secrets must never be added to extension environment files. See [Analytics integration and manual checks](_docs/analytics-integration.md).
 
 ## Installation
 
@@ -131,7 +131,7 @@ Chrome 138 introduced the stable desktop API; use the latest Chrome. Stable supp
 - No account, API key, or external translation API is needed for translation.
 - Translation uses Chrome's built-in Translator API.
 - NativeType does not upload text or translations or record drafts. Optional usage statistics default off, including on upgrade. Enabling the Privacy & Analytics switch sends only a random installation ID and successful translation, successful replacement, or terminal translation error event name to NativeType's Cloudflare Worker. Its D1 database keeps daily counts with a keyed hash of the ID for 90 UTC dates. This is pseudonymous measurement of participating installations, not an absolute anonymity guarantee or a count of people. Turning it off deletes the local ID, stops reporting and attempts to cancel pending requests. Already accepted counts expire on the server's retention schedule. Re-enabling creates a new ID. Chrome manages its own model downloads and implementation.
-- Production Manifest V3 retains `storage` and adds only `https://api.typewith.si/*` in `host_permissions`. The only content-script site match is still `https://x.com/*`. The storage permission saves preferences and the optional installation ID; draft text is not stored. The API permission allows background statistics requests and can trigger a Chrome install/update permission warning. The toolbar icon opens Settings; there is no popup or separate permission wizard.
+- Production Manifest V3 retains `storage` and adds only `https://typewith.si/*` in `host_permissions`. The only content-script site match is still `https://x.com/*`. The storage permission saves preferences and the optional installation ID; draft text is not stored. The API permission allows background statistics requests and can trigger a Chrome install/update permission warning. The toolbar icon opens Settings; there is no popup or separate permission wizard.
 
 ## Implementation
 

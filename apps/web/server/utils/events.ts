@@ -9,13 +9,15 @@ import {
   type UsageDatabase,
 } from './analytics';
 import { utcDateString } from './dates';
-import { corsHeaders, jsonError, methodNotAllowed, noContent, preflight, rateLimited } from './http';
+import { corsHeaders, jsonError, methodNotAllowed, noContent, preflight, rateLimited, resolveAllowedOrigins, type CorsBindings } from './http';
 import { parseAnalyticsRequest } from './validate';
 
-export interface AnalyticsBindings {
+/** Must match the Nuxt file route `server/api/v1/events.ts`. */
+export const analyticsEventsPath = '/api/v1/events';
+
+export interface AnalyticsBindings extends CorsBindings {
   DB: UsageDatabase;
   ANALYTICS_HMAC_SECRET: string;
-  ALLOWED_ORIGINS: string;
   ANALYTICS_RATE_LIMITER: RateLimiter;
 }
 
@@ -24,8 +26,9 @@ export async function handleEventRequest(
   env: AnalyticsBindings,
   now: Date = new Date(),
 ): Promise<Response> {
-  const headers = corsHeaders(request, env.ALLOWED_ORIGINS);
-  if (request.method === 'OPTIONS') return preflight(request, env.ALLOWED_ORIGINS);
+  const allowedOrigins = resolveAllowedOrigins(env);
+  const headers = corsHeaders(request, allowedOrigins);
+  if (request.method === 'OPTIONS') return preflight(request, allowedOrigins);
   if (request.method !== 'POST') return methodNotAllowed(headers);
 
   const parsed = await parseAnalyticsRequest(request);

@@ -4,8 +4,35 @@ import {
   isUsableHmacSecret,
   MIN_HMAC_SECRET_LENGTH,
   safeErrorDetail,
-} from '../src/analytics';
-import { addUtcDays, oldestRetainedUtcDate, utcDateString, windowStartUtcDate } from '../src/dates';
+} from '../server/utils/analytics';
+import { addUtcDays, oldestRetainedUtcDate, utcDateString, windowStartUtcDate } from '../server/utils/dates';
+import { resolveAllowedOrigins } from '../server/utils/http';
+
+describe('extension origins', () => {
+  const productionId = 'a'.repeat(32);
+  const devId = 'b'.repeat(32);
+
+  it('builds both origins from separate IDs', () => {
+    expect(resolveAllowedOrigins({ PRODUCTION_ID: productionId, DEV_ID: ` ${devId} ` })).toBe(
+      `chrome-extension://${productionId},chrome-extension://${devId}`,
+    );
+  });
+
+  it('deduplicates IDs and ignores missing or malformed IDs', () => {
+    expect(resolveAllowedOrigins({ PRODUCTION_ID: productionId, DEV_ID: productionId })).toBe(`chrome-extension://${productionId}`);
+    for (const invalid of ['', '*', 'short', 'z'.repeat(32), `${devId},https://other.example`, `chrome-extension://${devId}`]) {
+      expect(resolveAllowedOrigins({ DEV_ID: invalid })).toBe('');
+    }
+    expect(resolveAllowedOrigins({})).toBe('');
+  });
+
+  it('keeps explicitly configured extra origins and filters wildcards', () => {
+    expect(resolveAllowedOrigins({
+      PRODUCTION_ID: productionId,
+      ALLOWED_ORIGINS: `*,https://example.com,chrome-extension://${productionId}`,
+    })).toBe(`https://example.com,chrome-extension://${productionId}`);
+  });
+});
 
 describe('UTC dates', () => {
   it('uses the UTC calendar date across the day boundary', () => {

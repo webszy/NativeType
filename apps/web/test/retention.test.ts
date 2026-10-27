@@ -1,9 +1,9 @@
 import { createScheduledController, env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { recordUsage, type UsageDatabase } from '../src/analytics';
-import { addUtcDays, oldestRetainedUtcDate, windowStartUtcDate } from '../src/dates';
-import { handleScheduled } from '../src/events';
-import worker from '../src/index';
+import { recordUsage, type UsageDatabase } from '../server/utils/analytics';
+import { addUtcDays, oldestRetainedUtcDate, windowStartUtcDate } from '../server/utils/dates';
+import { handleScheduled } from '../server/utils/events';
+import worker from './worker';
 import { clearUsage, installHash, INSTALL_A, INSTALL_B, INSTALL_C, INSTALL_D, INSTALL_E, INSTALL_H } from './helpers';
 
 const today = '2026-10-26';

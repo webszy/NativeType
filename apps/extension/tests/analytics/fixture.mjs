@@ -4,7 +4,7 @@ import { settle } from '../dom-fixture.mjs';
 
 export const { createAnalyticsService, ANALYTICS_TIMEOUT_MS, ANALYTICS_INSTALL_ID_KEY } = await loadTs('analytics/background.ts');
 const { getDefaultSettings } = await loadTs('settings/store.ts');
-export const endpoint = 'https://analytics.test/v1/events';
+export const endpoint = 'https://analytics.test/api/v1/events';
 
 export function settings(enabled) {
   return { ...getDefaultSettings(), analytics: { enabled } };

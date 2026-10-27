@@ -43,7 +43,6 @@ export async function mountSettingsPage(root: HTMLElement, store: SettingsStore,
     translationSection(sourceSelect, targetSelect, direction),
     divider(),
     contextSection(contextGroups),
-    divider(),
     analyticsSection(analyticsInput),
     footer(status),
   );
@@ -260,6 +259,7 @@ function field(labelText: string, select: HTMLSelectElement): HTMLLabelElement {
 
 function analyticsSection(input: HTMLInputElement): HTMLElement {
   const section = document.createElement('section');
+  section.className = 'analytics-section';
   section.setAttribute('aria-labelledby', 'privacy-heading');
   const heading = document.createElement('h2');
   heading.id = 'privacy-heading';
@@ -312,9 +312,17 @@ function divider(): HTMLElement {
 
 function footer(status: HTMLElement): HTMLElement {
   const bar = document.createElement('footer');
+  const info = document.createElement('div');
+  info.className = 'footer-info';
   const name = document.createElement('p');
   name.textContent = 'NativeType Settings';
-  bar.append(name, status);
+  const github = document.createElement('a');
+  github.textContent = 'GitHub';
+  github.href = 'https://github.com/webszy/NativeType';
+  github.target = '_blank';
+  github.rel = 'noopener noreferrer';
+  info.append(name, github);
+  bar.append(info, status);
   return bar;
 }
 

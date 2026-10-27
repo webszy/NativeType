@@ -11,7 +11,7 @@ test('existing background listener validates internal messages and completes asy
   const stored = { settings: settings(true) };
   let onMessage;
   let optionsOpened = 0;
-  dom.setGlobal('__nativetypeTestEnv', { MODE: 'development', WXT_ANALYTICS_API_BASE_URL: 'https://analytics.test' });
+  dom.setGlobal('__nativetypeTestEnv', { MODE: 'development', WXT_ANALYTICS_API_BASE_URL: 'https://analytics.test/api' });
   dom.setGlobal('fetch', async (url, init) => { messages.push({ url, body: JSON.parse(init.body) }); return new Response(null, { status: 204 }); });
   dom.setGlobal('defineBackground', callback => callback);
   dom.setGlobal('browser', {
@@ -39,6 +39,7 @@ test('existing background listener validates internal messages and completes asy
   });
   assert.equal(await send({ type: 'analytics:event', event: 'translation_success' }), true);
   assert.equal(messages.length, 1);
+  assert.equal(messages[0].url, 'https://analytics.test/api/v1/events');
   assert.deepEqual(Object.keys(messages[0].body).sort(), ['event', 'installId']);
   assert.ok(stored[ANALYTICS_INSTALL_ID_KEY]);
   assert.equal(await send({ type: 'analytics:event', event: 'typing' }), false);
