@@ -1,4 +1,5 @@
 import { browser } from 'wxt/browser';
+import { createAnalyticsClient } from '../analytics/client';
 import { startNativeType } from '../core/controller';
 import { defaultLanguagePair } from '../languages/config';
 import { createTriggerDetector } from '../languages/detector';
@@ -19,6 +20,7 @@ export default defineContentScript({
       languagePair: defaultLanguagePair,
       settings: createChromeSettingsStore(),
       detector: createTriggerDetector(),
+      analytics: createAnalyticsClient(message => browser.runtime.sendMessage(message)),
       host: {
         listen: (target, type, listener) => ctx.addEventListener(target, type, listener),
         onInvalidated: listener => ctx.onInvalidated(listener),

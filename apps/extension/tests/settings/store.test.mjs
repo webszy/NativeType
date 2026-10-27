@@ -17,6 +17,7 @@ test('a first run and an upgrade with no saved settings keep Chinese to English 
     schemaVersion: 1,
     translation: { sourceLanguage: 'zh', targetLanguage: 'en' },
     contexts: { x: { post: true, reply: true, quote: true } },
+    analytics: { enabled: false },
   });
   for (const stored of [undefined, null, {}, { schemaVersion: 1 }]) {
     assert.deepEqual(normalizeSettings(stored), defaults);
@@ -52,6 +53,7 @@ test('equal languages and corrupt storage fall back without throwing', () => {
     schemaVersion: 1,
     translation: { sourceLanguage: 'zh', targetLanguage: 'en' },
     contexts: { x: { post: true, reply: false, quote: true } },
+    analytics: { enabled: false },
   });
   assert.equal(normalizeSettings({ translation: { sourceLanguage: 'fr' } }).translation.targetLanguage, 'en');
   assert.deepEqual(normalizeSettings('broken'), getDefaultSettings());
@@ -60,6 +62,29 @@ test('equal languages and corrupt storage fall back without throwing', () => {
 test('storage reads local extension settings and does not add a network client', async () => {
   const source = await readFile(new URL('../../settings/chrome.ts', import.meta.url), 'utf8');
   assert.match(source, /browser\.storage\.local/);
-  assert.match(source, /SETTINGS_STORAGE_KEY = 'settings'/);
+  const keys = await readFile(new URL('../../settings/keys.ts', import.meta.url), 'utf8');
+  assert.match(keys, /SETTINGS_STORAGE_KEY = 'settings'/);
   assert.doesNotMatch(source, /fetch\(|XMLHttpRequest|WebSocket|analytics|telemetry/);
+});
+
+test('analytics consent requires an explicit boolean on the supported settings schema', async () => {
+  for (const analytics of [undefined, null, true, [], {}, { enabled: 'true' }, { enabled: 1 }]) {
+    assert.equal(normalizeSettings({ schemaVersion: 1, analytics }).analytics.enabled, false);
+  }
+  assert.equal(normalizeSettings({ analytics: { enabled: true } }).analytics.enabled, false);
+  assert.equal(normalizeSettings({ schemaVersion: 2, analytics: { enabled: true } }).analytics.enabled, false);
+  const backend = createMemoryBackend();
+  const first = createSettingsStore(backend);
+  const second = createSettingsStore(backend);
+  const seen = [];
+  second.subscribe(value => seen.push(value.analytics.enabled));
+  const next = getDefaultSettings();
+  next.analytics.enabled = true;
+  assert.equal(sameSettings(next, getDefaultSettings()), false);
+  await first.save(next);
+  assert.equal((await second.load()).analytics.enabled, true);
+  assert.equal((await createSettingsStore(createMemoryBackend(backend.current())).load()).analytics.enabled, true);
+  next.analytics.enabled = false;
+  await first.save(next);
+  assert.deepEqual(seen, [true, false]);
 });

@@ -9,6 +9,7 @@ export interface NativeTypeSettings {
     targetLanguage: string;
   };
   contexts: ContextSettings;
+  analytics: { enabled: boolean };
 }
 
 export interface SettingsBackend {
@@ -31,6 +32,7 @@ export function getDefaultSettings(): NativeTypeSettings {
       targetLanguage: defaultLanguagePair.target,
     },
     contexts: normalizeContexts(undefined),
+    analytics: { enabled: false },
   };
 }
 
@@ -57,6 +59,7 @@ export function normalizeSettings(input: unknown): NativeTypeSettings {
   const defaults = getDefaultSettings();
   const record = isRecord(input) ? input : {};
   const translation = isRecord(record.translation) ? record.translation : {};
+  const analytics = isRecord(record.analytics) ? record.analytics : {};
   let sourceLanguage = canonicalLanguage(translation.sourceLanguage) ?? defaults.translation.sourceLanguage;
   let targetLanguage = canonicalLanguage(translation.targetLanguage) ?? defaults.translation.targetLanguage;
   if (sourceLanguage === targetLanguage) targetLanguage = differentTarget(sourceLanguage);
@@ -64,6 +67,7 @@ export function normalizeSettings(input: unknown): NativeTypeSettings {
     schemaVersion: 1,
     translation: { sourceLanguage, targetLanguage },
     contexts: normalizeContexts(record.contexts),
+    analytics: { enabled: record.schemaVersion === 1 && analytics.enabled === true },
   };
 }
 
@@ -72,6 +76,7 @@ export function sameSettings(left: NativeTypeSettings, right: NativeTypeSettings
   const rightContexts: Record<string, Record<string, boolean>> = right.contexts;
   return left.translation.sourceLanguage === right.translation.sourceLanguage
     && left.translation.targetLanguage === right.translation.targetLanguage
+    && left.analytics.enabled === right.analytics.enabled
     && Object.entries(platformContextConfig).every(([platform, config]) =>
       Object.entries(config.contexts).every(([context, option]) =>
         (leftContexts[platform]?.[context] ?? option.defaultEnabled) === (rightContexts[platform]?.[context] ?? option.defaultEnabled)));

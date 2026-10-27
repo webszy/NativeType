@@ -1,4 +1,6 @@
 import { classifyTrigger, isLongEnoughToDetect, type LanguagePair } from '../languages/config';
+import type { AnalyticsReporter } from '../analytics/client';
+import type { AnalyticsEventType } from '@nativetype/contracts';
 import type { TriggerDetector } from '../languages/detector';
 import type { PlatformAdapter } from '../platforms/types';
 import { getDefaultSettings, sameSettings, type NativeTypeSettings, type SettingsStore } from '../settings/store';
@@ -18,6 +20,7 @@ export function startNativeType(options: {
   languagePair: LanguagePair;
   settings?: SettingsStore;
   detector?: TriggerDetector;
+  analytics?: AnalyticsReporter;
   host: ExtensionHost;
 }): void {
   const { platform, provider, detector, host } = options;
@@ -70,6 +73,7 @@ export function startNativeType(options: {
       session.sourceText = platform.getText(editor);
       session.preview = undefined;
       overlay.hide();
+      reportAnalytics('replace_success');
     } else {
       session.preview = { kind: 'error', text: platform.replacementErrorMessage };
       overlay.show(editor, session.preview);
@@ -83,6 +87,15 @@ export function startNativeType(options: {
       source: settings.translation.sourceLanguage,
       target: settings.translation.targetLanguage,
     };
+  }
+
+  function reportAnalytics(event: AnalyticsEventType) {
+    if (!settings.analytics.enabled) return;
+    try {
+      void Promise.resolve(options.analytics?.(event)).catch(() => {});
+    } catch {
+      // Analytics never changes translation, Preview, Replace, or Retry.
+    }
   }
 
   function contextEnabled(editor: HTMLElement): boolean {
@@ -161,6 +174,8 @@ export function startNativeType(options: {
       kind: 'downloading',
       text: detector?.detectionProgressText(progress) ?? `Downloading language detection… ${progress}%`,
     });
+    let translationStarted = false;
+    let translationCompleted = false;
     try {
       // Both creates run before the first await so the click keeps user activation.
       if (activated) {
@@ -198,6 +213,7 @@ export function startNativeType(options: {
         }
         show({ kind: 'translating', text: 'Translating…' });
       }
+      translationStarted = true;
       const result = await provider.translate(text, {
         source: pair.source,
         target: pair.target,
@@ -206,13 +222,20 @@ export function startNativeType(options: {
         onProgress: progress => show({ kind: 'downloading', text: provider.downloadProgressText(progress) }),
       });
       if (!current()) return;
+      translationCompleted = true;
       session.cached = { source: text, translation: result, sourceLanguage: pair.source, targetLanguage: pair.target };
       show({ kind: 'translated', text: result });
+      if (result.trim() && current()) reportAnalytics('translation_success');
     } catch (error) {
       if (!current()) return;
       show(error instanceof TranslationError
         ? { kind: error.kind, text: error.message }
         : { kind: 'error', text: 'Translation failed. Please retry.' });
+      if (translationStarted && !translationCompleted
+        && !(error instanceof Error && error.name === 'AbortError')
+        && !(error instanceof TranslationError && error.kind === 'enable')) {
+        reportAnalytics('translation_error');
+      }
     }
   }
 

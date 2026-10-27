@@ -14,6 +14,9 @@
     "postinstall": "wxt prepare",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@nativetype/contracts": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "^26.6.4",
     "@types/ws": "^8.18.2",

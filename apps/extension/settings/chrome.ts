@@ -1,7 +1,7 @@
 import { browser } from 'wxt/browser';
 import { createSettingsStore, type NativeTypeSettings, type SettingsStore } from './store';
-
-export const SETTINGS_STORAGE_KEY = 'settings';
+import { SETTINGS_STORAGE_KEY } from './keys';
+export { SETTINGS_STORAGE_KEY } from './keys';
 
 export function createChromeSettingsStore(): SettingsStore {
   return createSettingsStore({

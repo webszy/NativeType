@@ -10,6 +10,7 @@ export async function mountSettingsPage(root: HTMLElement, store: SettingsStore,
   const targetSelect = document.createElement('select');
   sourceSelect.id = 'source-language';
   targetSelect.id = 'target-language';
+  const analyticsInput = switchInput('analytics-enabled');
   const contextGroups = Object.entries(platformContextConfig).map(([platform, config]) => ({
     platform,
     title: config.title,
@@ -42,6 +43,8 @@ export async function mountSettingsPage(root: HTMLElement, store: SettingsStore,
     translationSection(sourceSelect, targetSelect, direction),
     divider(),
     contextSection(contextGroups),
+    divider(),
+    analyticsSection(analyticsInput),
     footer(status),
   );
   render(lastSaved);
@@ -64,6 +67,9 @@ export async function mountSettingsPage(root: HTMLElement, store: SettingsStore,
       if (!rendering) persist();
     });
   }
+  analyticsInput.addEventListener('change', () => {
+    if (!rendering) persist();
+  });
 
   store.subscribe(next => {
     revision += 1;
@@ -90,6 +96,7 @@ export async function mountSettingsPage(root: HTMLElement, store: SettingsStore,
   function readForm(): NativeTypeSettings {
     return normalizeSettings({
       schemaVersion: 1,
+      analytics: { enabled: analyticsInput.checked },
       translation: {
         sourceLanguage: sourceSelect.value,
         targetLanguage: targetSelect.value,
@@ -103,6 +110,7 @@ export async function mountSettingsPage(root: HTMLElement, store: SettingsStore,
 
   function render(settings: NativeTypeSettings) {
     rendering = true;
+    analyticsInput.checked = settings.analytics.enabled;
     fill(sourceSelect, settings.translation.sourceLanguage, settings.translation.targetLanguage);
     fill(targetSelect, settings.translation.targetLanguage, settings.translation.sourceLanguage);
     const contexts: Record<string, Record<string, boolean>> = settings.contexts;
@@ -248,6 +256,23 @@ function field(labelText: string, select: HTMLSelectElement): HTMLLabelElement {
   select.setAttribute('autocomplete', 'off');
   label.append(name, select);
   return label;
+}
+
+function analyticsSection(input: HTMLInputElement): HTMLElement {
+  const section = document.createElement('section');
+  section.setAttribute('aria-labelledby', 'privacy-heading');
+  const heading = document.createElement('h2');
+  heading.id = 'privacy-heading';
+  heading.textContent = 'Privacy & Analytics';
+  const description = document.createElement('p');
+  description.className = 'section-description';
+  description.textContent = 'Optional. Disabled by default.';
+  const details = document.createElement('p');
+  details.className = 'section-description';
+  details.textContent = 'When enabled, a random installation ID and these counts go to NativeType’s Cloudflare Worker. The server stores a keyed hash of the ID with daily counts for 90 UTC dates. Turning this off clears the local ID and stops reporting; historical counts remain until they expire. Enabling again creates a new ID.';
+  section.append(heading, description, contextRow(input, 'Share anonymous usage statistics',
+    'Help improve NativeType by sharing anonymous counts of successful translations, replacements, and errors. Your text, translations, URLs, and account information are never collected.'), details);
+  return section;
 }
 
 function contextRow(input: HTMLInputElement, title: string, hint: string): HTMLElement {

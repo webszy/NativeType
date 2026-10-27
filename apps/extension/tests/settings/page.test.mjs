@@ -33,6 +33,7 @@ async function setup(t, backend = delayedStore()) {
     backend,
     post: root.querySelectorAll('input').find(input => input.id === 'context-post'),
     reply: root.querySelectorAll('input').find(input => input.id === 'context-reply'),
+    analytics: root.querySelectorAll('input').find(input => input.id === 'analytics-enabled'),
     status: root.querySelector('[role="status"]'),
   };
 }
@@ -51,6 +52,20 @@ test('reverting a switch while saving writes the latest value and ignores older 
   await backend.commit(1);
   assert.equal(backend.current().contexts.x.post, true);
   assert.equal(status.textContent, 'Saved');
+});
+
+test('optional analytics starts off, saves immediately and follows storage changes', async t => {
+  const { backend, analytics, status } = await setup(t);
+  assert.equal(analytics.checked, false);
+  analytics.checked = true;
+  await analytics.fire('change');
+  assert.equal(backend.writes.length, 1);
+  assert.equal(backend.writes[0].value.analytics.enabled, true);
+  await backend.commit(0);
+  assert.equal(status.textContent, 'Saved');
+  assert.equal(backend.current().analytics.enabled, true);
+  backend.publish(getDefaultSettings());
+  assert.equal(analytics.checked, false);
 });
 
 test('multiple edits coalesce into the latest complete settings record', async t => {

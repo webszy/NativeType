@@ -1,6 +1,6 @@
 # @nativetype/api
 
-Cloudflare Worker for NativeType usage measurement. The extension does not call it yet.
+Cloudflare Worker for NativeType usage measurement. The extension now calls the existing API only after the user enables optional statistics; see [extension integration and checks](../../_docs/analytics-integration.md).
 
 This is pseudonymous measurement of participating installations. It is not a count of people, and it is not the Chrome Web Store install total. Do not describe it as fully anonymous: the database stores `HMAC-SHA256(installId, secret)`. Someone who has both the secret and an install id can match a row.
 
@@ -202,7 +202,7 @@ pnpm deploy:api
 
 `build:api` is `wrangler deploy --dry-run`. It packages the Worker and does not upload it. In Wrangler 4.152 a dry-run also skips D1 provisioning when `database_id` is absent.
 
-`db:migrate:api:remote` and `deploy:api` change the Cloudflare account. Both scripts run `scripts/require-database-id.mjs` first and exit before Wrangler unless the top-level `DB` binding for `nativetype-analytics` has a UUID `database_id` in `wrangler.jsonc`. The guard uses Wrangler's JSONC parser, so ids in comments, other bindings, or other environments do not satisfy it. That guard is there because `wrangler deploy` auto-provisions a D1 database when the field is omitted, and remote migration resolves `nativetype-analytics` by name. The first production migration and deployment were completed on 2026-10-26 after pinning the database id. Local migration does not use the guard.
+`db:migrate:api:remote` and `deploy:api` change the Cloudflare account. `deploy:api` runs `wrangler deploy`. The production D1 id is already pinned on the top-level `DB` binding in `wrangler.jsonc`, so deploy reads that resource directly. `db:migrate:api:remote` still runs `scripts/require-database-id.mjs` first and exits before Wrangler unless that same binding has a UUID `database_id`. The guard uses Wrangler's JSONC parser, so ids in comments, other bindings, or other environments do not satisfy it. Remote migration resolves `nativetype-analytics` by name when the field is omitted. The first production migration and deployment were completed on 2026-10-26 after pinning the database id. Local migration does not use the guard.
 
 `pnpm dev`, `pnpm build`, and `pnpm test:extension` stay the extension commands.
 
@@ -226,13 +226,13 @@ Optional: add the WAF rule above. Logs and traces are enabled at a sampling rate
 
 ## Extension follow-up
 
-Do not send events until the disclosure and the opt-in exist. Suggested minimum:
+The extension-side integration implements the following boundaries. Publish the updated policy and store disclosures alongside its release:
 
 - Keep using `AnalyticsEventRequest` from `@nativetype/contracts`. Generate `installId` once with `crypto.randomUUID()` and store it in `chrome.storage.local`.
 - Default the setting off. Explain what is sent before the first enable: event name and a random install id, not text, URLs, or account data. Let the user turn it off later. A disabled setting sends nothing.
 - Report from the extension service worker after a finished preview, Replace, or terminal failure. Swallow request failures. Do not await them on the translation path. Set `referrerPolicy: "no-referrer"`.
 - Add a host permission only for the API origin.
-- Update the Chrome Web Store Privacy Practices and `apps/extension/store-assets/privacy.html` in the same release as the opt-in. The current extension still does not phone home, and its privacy text should stay that way until this ships.
+- Update the Chrome Web Store Privacy Practices and hosted policy in the same release as the opt-in. The repository policy source at `apps/extension/store-assets/privacy.html` is updated; external publication and the actual store form remain operator steps.
 
 ## Local tests
 

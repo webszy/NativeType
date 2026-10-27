@@ -7,6 +7,7 @@ import { attachedPost } from '../platforms/x-fixture.mjs';
 const { startNativeType } = await loadTs('core/controller.ts');
 const { xPlatform } = await loadTs('platforms/x.ts');
 const { createMemoryBackend, createSettingsStore, getDefaultSettings } = await loadTs('settings/store.ts');
+const { TranslationError } = await loadTs('translators/types.ts');
 
 async function setup(t, translate = async () => 'Translated draft', replace, options = {}) {
   const dom = installDOM(t);
@@ -28,6 +29,8 @@ async function setup(t, translate = async () => 'Translated draft', replace, opt
   Object.assign(settings.contexts.x, options.contexts);
   const pair = options.pair ?? { source: 'zh', target: 'en' };
   settings.translation = { sourceLanguage: pair.source, targetLanguage: pair.target };
+  settings.analytics.enabled = options.analyticsEnabled ?? false;
+  const analyticsEvents = [];
   let replacements = 0;
   let signal;
   const backend = createMemoryBackend(settings);
@@ -58,6 +61,7 @@ async function setup(t, translate = async () => 'Translated draft', replace, opt
     },
     languagePair: pair,
     detector: options.detector,
+    analytics: options.analytics ?? (event => { analyticsEvents.push(event); }),
     settings: store,
     host: {
       listen: (target, type, listener) => listeners.push({ target, type, listener }),
@@ -71,7 +75,7 @@ async function setup(t, translate = async () => 'Translated draft', replace, opt
   dom.flushFrames();
   const overlay = document.body.querySelector('[data-nativetype]');
   return {
-    ...dom, editor, overlay, settings: store, retainedPairs,
+    ...dom, editor, overlay, settings: store, retainedPairs, analyticsEvents,
     disposals: () => disposals,
     invalidate: () => invalidate(),
     emit(type, target = document, eventTarget = document.activeElement) {
@@ -80,6 +84,7 @@ async function setup(t, translate = async () => 'Translated draft', replace, opt
     replacements: () => replacements,
     signal: () => signal,
     replace: () => overlay.shadowRoot.querySelectorAll('button').find(button => button.textContent === 'Replace').fire('click'),
+    retry: () => overlay.shadowRoot.querySelectorAll('button').find(button => button.textContent === 'Retry').fire('click'),
     removeQuote(notify = true) {
       quote.remove();
       if (notify) dom.mutate([{ type: 'childList', target: attachment }]);
@@ -97,6 +102,179 @@ test('removing a quote without editing text hides the preview and restores input
   await fixture.replace();
   assert.equal(fixture.replacements(), 0);
   assert.equal(fixture.editor.innerText, '這是一段測試文字');
+});
+
+test('analytics counts one completed translation across DOM refresh and cached preview reuse', async t => {
+  let calls = 0;
+  const fixture = await setup(t, async () => { calls += 1; return 'Translated draft'; }, undefined, { analyticsEnabled: true });
+  assert.deepEqual(fixture.analyticsEvents, ['translation_success']);
+  fixture.emit('input', document, fixture.editor);
+  fixture.mutate([{ type: 'childList', target: fixture.editor }]);
+  fixture.flushFrames();
+  const original = fixture.editor.innerText;
+  fixture.editor.innerText = 'A different language';
+  fixture.emit('input', document, fixture.editor);
+  fixture.editor.innerText = original;
+  fixture.emit('input', document, fixture.editor);
+  await settle();
+  fixture.flushFrames();
+  assert.equal(fixture.overlay.style.display, 'block');
+  assert.equal(calls, 1);
+  assert.deepEqual(fixture.analyticsEvents, ['translation_success']);
+});
+
+test('new input and explicit Retry are separate successful translation operations', async t => {
+  const fixture = await setup(t, undefined, undefined, { analyticsEnabled: true });
+  fixture.editor.innerText = '這是新的內容';
+  fixture.emit('input', document, fixture.editor);
+  t.mock.timers.tick(1000);
+  await settle();
+  await fixture.retry();
+  await settle();
+  assert.deepEqual(fixture.analyticsEvents, Array(3).fill('translation_success'));
+});
+
+test('Replace only reports after the verified operation succeeds and cannot double count', async t => {
+  let complete;
+  const fixture = await setup(t, undefined, (editor, _source, translation) => new Promise(resolve => {
+    complete = () => { editor.innerText = translation; resolve(true); };
+  }), { analyticsEnabled: true });
+  const replacing = fixture.replace();
+  await settle();
+  assert.deepEqual(fixture.analyticsEvents, ['translation_success']);
+  complete();
+  await replacing;
+  await fixture.replace();
+  assert.equal(fixture.editor.innerText, 'Translated draft');
+  assert.deepEqual(fixture.analyticsEvents, ['translation_success', 'replace_success']);
+});
+
+test('a failed Replace reports neither replacement success nor translation failure', async t => {
+  const fixture = await setup(t, undefined, async () => false, { analyticsEnabled: true });
+  await fixture.replace();
+  assert.deepEqual(fixture.analyticsEvents, ['translation_success']);
+  assert.equal(fixture.editor.innerText, '這是一段測試文字');
+});
+
+test('terminal translation failure counts once and Retry can then count success', async t => {
+  let failing = true;
+  const fixture = await setup(t, async () => {
+    if (failing) throw new TranslationError('error', 'Translation failed. Please retry.');
+    return 'Recovered translation';
+  }, undefined, { analyticsEnabled: true });
+  assert.deepEqual(fixture.analyticsEvents, ['translation_error']);
+  failing = false;
+  await fixture.retry();
+  await settle();
+  assert.equal(fixture.overlay.shadowRoot.querySelector('p').textContent, 'Recovered translation');
+  assert.deepEqual(fixture.analyticsEvents, ['translation_error', 'translation_success']);
+});
+
+test('a model-unavailable translation attempt counts as a terminal error', async t => {
+  const fixture = await setup(t, async () => { throw new TranslationError('unsupported', 'Model unavailable'); }, undefined, { analyticsEnabled: true });
+  assert.deepEqual(fixture.analyticsEvents, ['translation_error']);
+});
+
+test('waiting for model activation is not a translation error', async t => {
+  const fixture = await setup(t, async () => { throw new TranslationError('enable', 'Enable translation'); }, undefined, { analyticsEnabled: true });
+  assert.deepEqual(fixture.analyticsEvents, []);
+});
+
+test('an aborted execution never counts as a translation error', async t => {
+  const fixture = await setup(t, async () => { throw new DOMException('Cancelled', 'AbortError'); }, undefined, { analyticsEnabled: true });
+  assert.deepEqual(fixture.analyticsEvents, []);
+});
+
+test('closing Preview cancels a pending operation without reporting late success', async t => {
+  let complete;
+  const fixture = await setup(t, () => new Promise(resolve => { complete = resolve; }), undefined, { analyticsEnabled: true });
+  const close = fixture.overlay.shadowRoot.querySelectorAll('button').find(button => button.getAttribute('aria-label') === 'Close translation preview');
+  await close.fire('click');
+  complete('Late translation');
+  await settle();
+  assert.deepEqual(fixture.analyticsEvents, []);
+});
+
+test('a newer request supersedes the old result and only counts its own success', async t => {
+  const pending = [];
+  const fixture = await setup(t, () => new Promise(resolve => { pending.push(resolve); }), undefined, { analyticsEnabled: true });
+  fixture.editor.innerText = '這是較新的內容';
+  fixture.emit('input', document, fixture.editor);
+  t.mock.timers.tick(1000);
+  await settle();
+  pending[0]('Stale translation');
+  await settle();
+  assert.deepEqual(fixture.analyticsEvents, []);
+  pending[1]('Current translation');
+  await settle();
+  assert.deepEqual(fixture.analyticsEvents, ['translation_success']);
+});
+
+test('a normal editor removal suppresses a late execution error', async t => {
+  let fail;
+  const fixture = await setup(t, () => new Promise((_resolve, reject) => { fail = reject; }), undefined, { analyticsEnabled: true });
+  fixture.editor.remove();
+  fail(new Error('Late failure'));
+  await settle();
+  assert.deepEqual(fixture.analyticsEvents, []);
+});
+
+test('language detection failure before translation starts is not a translation event', async t => {
+  let translated = false;
+  const fixture = await setup(t, async () => { translated = true; return 'translation'; }, undefined, {
+    analyticsEnabled: true, text: 'This is enough English text for detection', pair: { source: 'en', target: 'ja' },
+    detector: { detect: async () => ({ status: 'error', message: 'Detection failed' }), dispose() {}, reset() {} },
+  });
+  assert.equal(translated, false);
+  assert.deepEqual(fixture.analyticsEvents, []);
+});
+
+test('a synchronous analytics failure preserves Preview and Replace without error recursion', async t => {
+  const events = [];
+  const fixture = await setup(t, undefined, undefined, { analyticsEnabled: true, analytics: event => {
+    events.push(event);
+    throw new Error('Analytics failed');
+  } });
+  assert.equal(fixture.overlay.shadowRoot.querySelector('p').textContent, 'Translated draft');
+  await fixture.replace();
+  assert.equal(fixture.editor.innerText, 'Translated draft');
+  assert.deepEqual(events, ['translation_success', 'replace_success']);
+});
+
+test('rejected analytics promises preserve local success without extra translation errors', async t => {
+  const events = [];
+  const fixture = await setup(t, undefined, undefined, { analyticsEnabled: true, analytics: async event => {
+    events.push(event);
+    throw new Error('Network unavailable');
+  } });
+  await fixture.replace();
+  await settle();
+  assert.equal(fixture.editor.innerText, 'Translated draft');
+  assert.deepEqual(events, ['translation_success', 'replace_success']);
+});
+
+test('a hung analytics promise never delays Preview or Replace', async t => {
+  const fixture = await setup(t, undefined, undefined, { analyticsEnabled: true, analytics: () => new Promise(() => {}) });
+  assert.equal(fixture.overlay.shadowRoot.querySelector('p').textContent, 'Translated draft');
+  await fixture.replace();
+  assert.equal(fixture.editor.innerText, 'Translated draft');
+});
+
+test('already-open X tabs follow opt-in changes without retransmitting an old Preview', async t => {
+  const fixture = await setup(t);
+  assert.deepEqual(fixture.analyticsEvents, []);
+  const next = await fixture.settings.load();
+  next.analytics.enabled = true;
+  await fixture.settings.save(next);
+  assert.deepEqual(fixture.analyticsEvents, []);
+  await fixture.retry();
+  await settle();
+  assert.deepEqual(fixture.analyticsEvents, ['translation_success']);
+  next.analytics.enabled = false;
+  await fixture.settings.save(next);
+  await fixture.replace();
+  assert.deepEqual(fixture.analyticsEvents, ['translation_success']);
+  assert.equal(fixture.editor.innerText, 'Translated draft');
 });
 
 test('Replace rechecks the context before the observer has delivered a DOM change', async t => {

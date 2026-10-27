@@ -41,7 +41,7 @@ pnpm --filter @nativetype/extension build
 pnpm --filter @nativetype/extension test
 ```
 
-`pnpm dev`, `pnpm build`, and `pnpm zip` remain the root aliases for the extension. `pnpm typecheck` also checks `@nativetype/contracts` and `@nativetype/api`. The extension does not call the API and does not bundle the contracts package. API commands are `pnpm dev:api`, `pnpm test:api`, `pnpm build:api`, and `pnpm db:migrate:api:local`. Remote migration and deploy are documented in `apps/api/README.md` and are not part of the extension workflow.
+`pnpm dev`, `pnpm build`, and `pnpm zip` remain the root aliases for the extension. `pnpm typecheck` also checks `@nativetype/contracts` and `@nativetype/api`. Optional statistics reuse the contracts package and existing API. API commands are `pnpm dev:api`, `pnpm test:api`, `pnpm build:api`, and `pnpm db:migrate:api:local`. Remote migration and deploy are documented in `apps/api/README.md` and are not part of the extension workflow.
 
 ## Development
 
@@ -51,6 +51,8 @@ pnpm dev:extension
 ```
 
 WXT starts the development extension from `apps/extension`. Open X in that browser and sign in if needed. Production permissions below refer to `pnpm build`; WXT's development tooling may add development-only access.
+
+Development statistics have no default endpoint. Copy `apps/extension/.env.development.example` to `.env.development.local` in the same directory and set `WXT_ANALYTICS_API_BASE_URL` to a separate HTTPS local/test Worker origin. Both known production hosts are rejected outside production mode. Production builds read the public URL `https://api.typewith.si` from `.env.production` and fail if it is missing or invalid. These URLs are not credentials; server secrets must never be added to extension environment files. See [Analytics integration and manual checks](_docs/analytics-integration.md).
 
 ## Installation
 
@@ -126,17 +128,18 @@ Chrome 138 introduced the stable desktop API; use the latest Chrome. Stable supp
 
 ## Privacy and permissions
 
-- No account, API key, server, or external translation API.
+- No account, API key, or external translation API is needed for translation.
 - Translation uses Chrome's built-in Translator API.
-- NativeType itself does not upload text to a NativeType server, record drafts, or add analytics/telemetry. Chrome manages its own model downloads and implementation. `apps/api` can store pseudonymous usage counts, but the extension does not send them. That stays off until a separate opt-in exists.
-- Production Manifest V3 declares one permission, `storage`, so language and X context preferences can stay on this device. Draft text is not stored. There are no `host_permissions`. The only site match is `https://x.com/*`, allowing the content script to read the active composer and replace it on request. Chrome may still describe this as access to X site content. The toolbar icon opens the Settings tab; there is no popup.
+- NativeType does not upload text or translations or record drafts. Optional usage statistics default off, including on upgrade. Enabling the Privacy & Analytics switch sends only a random installation ID and successful translation, successful replacement, or terminal translation error event name to NativeType's Cloudflare Worker. Its D1 database keeps daily counts with a keyed hash of the ID for 90 UTC dates. This is pseudonymous measurement of participating installations, not an absolute anonymity guarantee or a count of people. Turning it off deletes the local ID, stops reporting and attempts to cancel pending requests. Already accepted counts expire on the server's retention schedule. Re-enabling creates a new ID. Chrome manages its own model downloads and implementation.
+- Production Manifest V3 retains `storage` and adds only `https://api.typewith.si/*` in `host_permissions`. The only content-script site match is still `https://x.com/*`. The storage permission saves preferences and the optional installation ID; draft text is not stored. The API permission allows background statistics requests and can trigger a Chrome install/update permission warning. The toolbar icon opens Settings; there is no popup or separate permission wizard.
 
 ## Implementation
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for module boundaries and the later extension points.
 
 - `entrypoints/content.ts`: resolves the X platform and Chrome provider, then starts and stops the content script with the saved settings and trigger detector.
-- `entrypoints/background.ts`: opens Settings when the toolbar icon is clicked. `entrypoints/options/`: the Settings page.
+- `entrypoints/background.ts`: opens Settings and owns statistics requests and installation ID storage. `entrypoints/options/`: the Settings page.
+- `analytics/`: shared-contract message validation, a fire-and-forget client, endpoint validation, and bounded background reporting. No SDK, heartbeat, retry, or persistent event queue.
 - `settings/`: settings types, defaults, validation, `chrome.storage.local`, and the page renderer.
 - `settings/config.ts`: platform groups, collapse titles/default state, context labels and default values. The Settings UI and stored-context validation use this object when adding platforms or options.
 - `core/`: focused composer tracking, X context gate, one-second debounce, IME handling, stale-request protection, in-memory result reuse for the current language pair, retry, replace, and cleanup.

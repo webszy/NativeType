@@ -80,12 +80,9 @@ test('Wrangler runs retention daily and requires the analytics secret', () => {
   assert.equal(wrangler.vars.ALLOWED_ORIGINS.split(',').some((origin) => origin.trim() === '*'), false);
 });
 
-test('remote commands use the database id guard', () => {
+test('remote migration uses the database id guard', () => {
   const pkg = JSON.parse(readFileSync(new URL('package.json', root), 'utf8'));
-  assert.equal(
-    pkg.scripts.deploy,
-    'node scripts/require-database-id.mjs wrangler deploy',
-  );
+  assert.equal(pkg.scripts.deploy, 'wrangler deploy');
   assert.equal(
     pkg.scripts['db:migrate:remote'],
     'node scripts/require-database-id.mjs wrangler d1 migrations apply nativetype-analytics --remote',
@@ -112,7 +109,7 @@ for (const [name, config] of [
     const blocked = runGuard(t, JSON.stringify(config));
     assert.equal(blocked.status, 1, blocked.stderr);
     assert.match(blocked.stderr, /database_id/);
-    assert.match(blocked.stderr, /auto-provision/);
+    assert.match(blocked.stderr, /resolve nativetype-analytics by name/);
   });
 }
 

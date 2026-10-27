@@ -53,14 +53,16 @@ test('registries stay static and replaced lib files are gone', async () => {
   await assert.rejects(access(path.join(root, 'lib/translator.ts')));
 });
 
-test('manifest inputs keep the X host and add only local settings storage', async () => {
+test('manifest inputs keep X and scope analytics access to the validated endpoint', async () => {
   const config = await readFile(path.join(root, 'wxt.config.ts'), 'utf8');
   const manifest = await readFile(path.join(root, 'package.json'), 'utf8');
   const options = await readFile(path.join(root, 'entrypoints/options/index.html'), 'utf8');
   const background = await readFile(path.join(root, 'entrypoints/background.ts'), 'utf8');
   assert.doesNotMatch(config, /\bversion\s*:/); // WXT inherits package.json.
   assert.match(config, /permissions:\s*\['storage'\]/);
-  assert.doesNotMatch(config, /host_permissions/);
+  assert.match(config, /host_permissions: endpoint \?/);
+  assert.match(config, /analyticsEndpoint/);
+  assert.doesNotMatch(config, /<all_urls>|https:\/\/\*\/\*/);
   assert.match(options, /manifest\.open_in_tab/);
   assert.match(options, /NativeType Settings/);
   assert.match(background, /action\.onClicked/);

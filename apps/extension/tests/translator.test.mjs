@@ -9,3 +9,7 @@ import './core/boundaries.test.mjs';
 import './platforms/context.test.mjs';
 import './platforms/x.test.mjs';
 import './translators/chrome.test.mjs';
+import './analytics/client.test.mjs';
+import './analytics/background.test.mjs';
+import './analytics/messaging.test.mjs';
+import './analytics/config.test.mjs';

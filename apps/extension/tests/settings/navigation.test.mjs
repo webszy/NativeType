@@ -13,6 +13,10 @@ test('the preview message and toolbar action open the same extension settings pa
   let fail = false;
   dom.setGlobal('defineBackground', handler => handler);
   dom.setGlobal('browser', {
+    storage: {
+      local: { get: async () => ({}), remove: async () => {} },
+      onChanged: { addListener() {}, removeListener() {} },
+    },
     action: { onClicked: { addListener: listener => { onAction = listener; } } },
     runtime: {
       openOptionsPage: async () => {

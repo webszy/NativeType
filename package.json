@@ -7,7 +7,7 @@
   "engines": {
     "node": ">=20.19"
   },
-  "packageManager": "pnpm@11.24.0",
+  "packageManager": "pnpm@12.15.0",
   "scripts": {
     "dev": "pnpm dev:extension",
     "dev:extension": "pnpm --filter @nativetype/extension dev",

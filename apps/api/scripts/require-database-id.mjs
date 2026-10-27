@@ -2,9 +2,9 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { experimental_readRawConfig } from 'wrangler';
 
-// Wrangler 4 auto-provisions a D1 database on `wrangler deploy` when database_id
-// is omitted. Remote migration also resolves a database by name. Both stay
-// blocked until a person pastes the id from `wrangler d1 create`.
+// Remote `wrangler d1 migrations apply` resolves a D1 database by name when
+// database_id is omitted. Block that path until the top-level DB binding for
+// nativetype-analytics has a UUID from `wrangler d1 create`.
 let databaseId;
 try {
   const { rawConfig } = experimental_readRawConfig({
@@ -24,7 +24,7 @@ if (typeof databaseId !== 'string' || !uuid.test(databaseId)) {
   console.error(
     [
       'Refusing to continue: the DB binding for nativetype-analytics has no valid D1 database_id in apps/api/wrangler.jsonc.',
-      'Wrangler deploy would auto-provision a D1 database in the logged-in account.',
+      'Remote migration would resolve nativetype-analytics by name in the logged-in account.',
       'Run `wrangler d1 create nativetype-analytics` and paste the printed id first.',
     ].join('\n'),
   );

@@ -127,7 +127,7 @@
         </p>
 
         <p class="updated">
-            Last updated: October 4, 2026
+            Last updated: October 27, 2026
         </p>
 
         <div class="summary">
@@ -136,6 +136,10 @@
             when necessary to provide translation functionality. NativeType does
             not sell your data, does not use your draft text for advertising, and
             does not transmit your draft text to NativeType-controlled servers.
+            Optional usage statistics are disabled by default. If you turn them
+            on, NativeType sends a random installation ID and one of three event
+            names to its own Cloudflare Worker; it never sends your text,
+            translations, page URLs, titles, or account information.
         </div>
     </header>
 
@@ -245,6 +249,29 @@
             the requested functionality and is not retained by NativeType after
             that functionality is completed.
         </p>
+
+        <p>
+            Language preferences, X context switches, and your statistics choice
+            are saved locally using Chrome extension storage. A random UUID v4
+            installation ID is created and stored locally only after you enable
+            usage statistics. It persists across browser restarts and normal
+            extension updates, and is not based on your account or device hardware.
+        </p>
+
+        <p>
+            For participating installations, the server stores a keyed
+            HMAC-SHA256 hash of that ID with daily translation, replacement, and
+            error counts in Cloudflare D1. It does not store the raw ID or an
+            individual event history. Daily cleanup retains the most recent 90
+            UTC dates; cleanup delays can temporarily extend retention.
+        </p>
+
+        <p>
+            Turning statistics off stops future reporting, removes the local ID,
+            and attempts to cancel pending requests. It does not immediately
+            delete counts already accepted by the server; those expire under
+            the retention policy. Turning statistics back on creates a new ID.
+        </p>
     </section>
 
     <section>
@@ -266,7 +293,8 @@
 
         <p>
             NativeType requests access only to supported websites where its
-            translation functionality needs to operate.
+            translation functionality needs to operate and to its statistics
+            API host, <code>https://api.typewith.si</code>.
         </p>
 
         <p>
@@ -282,6 +310,9 @@
 
         <p>
             These permissions are not used to monitor unrelated browsing activity.
+            The API host permission allows the extension background service worker
+            to send optional usage statistics after you enable them. It does not
+            send website content to that host.
         </p>
     </section>
 
@@ -291,6 +322,36 @@
         <p>
             NativeType does not currently use advertising trackers or behavioral
             analytics to monitor your browsing activity.
+        </p>
+
+        <p>
+            In Settings, under Privacy &amp; Analytics, you may choose
+            “Share anonymous usage statistics”. It is optional and disabled by
+            default for new and existing users. Translation works with this
+            setting off and when the statistics service is unavailable.
+        </p>
+
+        <p>
+            When enabled, the extension sends only a random installation ID and
+            the event name <code>translation_success</code>,
+            <code>replace_success</code>, or <code>translation_error</code> over
+            HTTPS to <code>https://api.typewith.si/v1/events</code>, a
+            NativeType-controlled Cloudflare Worker. These counts help us
+            understand use and reliability. They do not measure individual people
+            or translation quality. We do not collect draft text, translations,
+            URLs, page titles, account details, language-detection text, or error
+            stacks in statistics reports. We do not store IP addresses or
+            User-Agent strings in the analytics database.
+        </p>
+
+        <p>
+            Despite the setting's short label, this is pseudonymous measurement,
+            not absolutely anonymous or untraceable data. Reports using the same
+            installation ID can be correlated. Someone with both the server's
+            HMAC secret and an installation ID could match its stored hash.
+            Cloudflare processes network connections as our infrastructure
+            provider. No account ID, device fingerprint, or hardware identifier
+            is used to create the random installation ID.
         </p>
     </section>
 
