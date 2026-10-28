@@ -205,13 +205,12 @@ a {
   position: sticky;
   top: 0;
   z-index: 30;
-  border-bottom: 1px solid transparent;
-  transition: background-color 0.3s, border-color 0.3s;
+  border-bottom: 1px solid rgb(0 0 0 / 0.06);
+  transition: background-color 0.3s;
 }
 
 .header.is-scrolled {
   background: rgb(252 252 253 / 0.88);
-  border-bottom-color: rgb(0 0 0 / 0.06);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
 }
@@ -435,9 +434,12 @@ a {
   text-align: center;
 }
 
-.demo-card {
+.demo-float {
   width: min(680px, 100%);
   margin: 18px auto 0;
+}
+
+.demo-card {
   padding: 16px 16px 12px;
   border: 1px solid rgb(0 0 0 / 0.06);
   border-radius: 28px;
@@ -445,6 +447,22 @@ a {
   box-shadow: var(--shadow-card);
   text-align: left;
   transition: transform 0.45s var(--ease), box-shadow 0.45s var(--ease);
+}
+
+@keyframes demo-breathe {
+  0%, 100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .demo-float {
+    animation: demo-breathe 5s ease-in-out 1.1s infinite;
+  }
 }
 
 .composer-head {
@@ -1049,6 +1067,7 @@ a {
   .text-swap-enter-active,
   .text-swap-leave-active,
   .preview-slot,
+  .demo-float,
   .demo-card,
   .step,
   .btn,

@@ -18,10 +18,34 @@ export interface ChangelogRelease {
  * Dated entries are displayed newest first; undated entries retain their order
  * after dated releases. Empty change categories are not displayed.
  *
- * Checked 2026-10-28: the repository has no published GitHub Releases or tags.
- * The Chrome Web Store lists v0.0.3, but supplies no versioned release notes.
- * Leave this empty rather than infer changes or publication dates.
- * Sources: https://github.com/webszy/NativeType/releases
- * https://chromewebstore.google.com/detail/nativetype/emicomnfbabkhcpphlihhbddhlmkdhfk
+ * v0.0.4 is the current product release: public site, language settings, composer
+ * controls, and the usage API. GitHub has no matching Release or tag.
+ * v0.0.3 remains the Chrome Web Store listing as of 2026-10-28.
+ * Store listing: https://chromewebstore.google.com/detail/nativetype/emicomnfbabkhcpphlihhbddhlmkdhfk
  */
-export const changelogReleases: readonly ChangelogRelease[] = []
+export const changelogReleases: readonly ChangelogRelease[] = [
+  {
+    version: '0.0.4',
+    releaseDate: '2026-10-28',
+    title: 'Official website, language settings, and statistics API',
+    changes: {
+      Added: [
+        'Launched the official NativeType website at typewith.si.',
+        'Choose source and target languages in Settings, covering Chrome Translator language pairs.',
+        'Control where translation appears on X: new posts, replies, and quote posts.',
+        'Optional statistics API for translation, replace, and error counts.',
+      ],
+    },
+  },
+  {
+    version: '0.0.3',
+    releaseDate: '2026-10-05',
+    title: 'Basic translation, now on the Chrome Web Store',
+    changes: {
+      Added: [
+        'Chinese-to-English translation inside the X composer, with an instant preview and one-click replace.',
+        'Published NativeType on the Chrome Web Store.',
+      ],
+    },
+  },
+]

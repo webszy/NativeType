@@ -66,92 +66,94 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 <template>
   <div class="demo">
     <p class="demo-label">Interactive Demo</p>
-    <div class="demo-card">
-      <div class="composer-head">
-        <p id="composer-label" class="composer-context">Composer on X</p>
-        <span class="demo-chip">Demo</span>
-      </div>
-      <div class="composer-row">
-        <span class="avatar" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="20" height="20">
-            <circle cx="12" cy="9" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6" />
-            <path d="M6.2 18.2c1.3-2.4 3.3-3.5 5.8-3.5s4.5 1.1 5.8 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-          </svg>
-        </span>
-        <div class="composer-body">
-          <p class="composer-text" :lang="composerLang" aria-labelledby="composer-label">
-            <Transition name="text-swap" mode="out-in">
-              <span :key="composerLang">{{ composerText }}</span>
-            </Transition>
-          </p>
-          <div class="preview-slot" :class="{ 'is-open': phase === 'preview' }">
-            <div class="preview-clip">
-              <section
-                class="preview"
-                aria-label="NativeType translation preview"
-                :aria-hidden="phase !== 'preview'"
-              >
-                <div class="preview-head">
-                  <span class="preview-brand">
-                    <img src="/icon-128.png" width="16" height="16" alt="">
-                    NativeType
-                  </span>
-                  <span class="preview-pair">ZH → EN</span>
-                  <button
-                    class="preview-close"
-                    type="button"
-                    aria-label="Close preview"
-                    :disabled="phase !== 'preview'"
-                    @click="closePreview"
-                  >
-                    <span aria-hidden="true">×</span>
-                  </button>
-                </div>
-                <p class="preview-body" lang="en">{{ translationText }}</p>
-                <div class="preview-actions">
-                  <button
-                    ref="replaceButton"
-                    class="btn btn-primary btn-sm"
-                    type="button"
-                    :disabled="phase !== 'preview'"
-                    @click="replaceText"
-                  >Replace</button>
-                </div>
-              </section>
+    <div class="demo-float">
+      <div class="demo-card">
+        <div class="composer-head">
+          <p id="composer-label" class="composer-context">Composer on X</p>
+          <span class="demo-chip">Demo</span>
+        </div>
+        <div class="composer-row">
+          <span class="avatar" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <circle cx="12" cy="9" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6" />
+              <path d="M6.2 18.2c1.3-2.4 3.3-3.5 5.8-3.5s4.5 1.1 5.8 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            </svg>
+          </span>
+          <div class="composer-body">
+            <p class="composer-text" :lang="composerLang" aria-labelledby="composer-label">
+              <Transition name="text-swap" mode="out-in">
+                <span :key="composerLang">{{ composerText }}</span>
+              </Transition>
+            </p>
+            <div class="preview-slot" :class="{ 'is-open': phase === 'preview' }">
+              <div class="preview-clip">
+                <section
+                  class="preview"
+                  aria-label="NativeType translation preview"
+                  :aria-hidden="phase !== 'preview'"
+                >
+                  <div class="preview-head">
+                    <span class="preview-brand">
+                      <img src="/icon-128.png" width="16" height="16" alt="">
+                      NativeType
+                    </span>
+                    <span class="preview-pair">ZH → EN</span>
+                    <button
+                      class="preview-close"
+                      type="button"
+                      aria-label="Close preview"
+                      :disabled="phase !== 'preview'"
+                      @click="closePreview"
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  </div>
+                  <p class="preview-body" lang="en">{{ translationText }}</p>
+                  <div class="preview-actions">
+                    <button
+                      ref="replaceButton"
+                      class="btn btn-primary btn-sm"
+                      type="button"
+                      :disabled="phase !== 'preview'"
+                      @click="replaceText"
+                    >Replace</button>
+                  </div>
+                </section>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <div class="composer-bar">
-        <div class="composer-tools" aria-hidden="true">
-          <span class="tool-icon">
-            <svg viewBox="0 0 24 24" width="18" height="18">
-              <rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6" />
-              <circle cx="9" cy="10" r="1.4" fill="currentColor" />
-              <path d="M7 16.5l3.2-3.2 2.2 2.1 2-2.4L18 16.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
-            </svg>
-          </span>
-          <span class="tool-icon">
-            <svg viewBox="0 0 24 24" width="18" height="18">
-              <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="1.6" />
-              <circle cx="9.2" cy="10.4" r="0.9" fill="currentColor" />
-              <circle cx="14.8" cy="10.4" r="0.9" fill="currentColor" />
-              <path d="M9 14.2c.8 1 1.8 1.5 3 1.5s2.2-.5 3-1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-            </svg>
-          </span>
+        <div class="composer-bar">
+          <div class="composer-tools" aria-hidden="true">
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18">
+                <rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+                <circle cx="9" cy="10" r="1.4" fill="currentColor" />
+                <path d="M7 16.5l3.2-3.2 2.2 2.1 2-2.4L18 16.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="tool-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18">
+                <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="1.6" />
+                <circle cx="9.2" cy="10.4" r="0.9" fill="currentColor" />
+                <circle cx="14.8" cy="10.4" r="0.9" fill="currentColor" />
+                <path d="M9 14.2c.8 1 1.8 1.5 3 1.5s2.2-.5 3-1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+              </svg>
+            </span>
+          </div>
+          <button
+            ref="translateButton"
+            class="btn btn-primary btn-sm btn-translate"
+            type="button"
+            :disabled="phase !== 'writing'"
+            :aria-pressed="phase === 'preview'"
+            @click="showPreview"
+          >
+            <img src="/icon-128.png" width="16" height="16" alt="">
+            Translate
+          </button>
+          <button class="btn btn-post btn-sm" type="button" disabled aria-label="Post is unavailable in this demo">Post</button>
         </div>
-        <button
-          ref="translateButton"
-          class="btn btn-primary btn-sm btn-translate"
-          type="button"
-          :disabled="phase !== 'writing'"
-          :aria-pressed="phase === 'preview'"
-          @click="showPreview"
-        >
-          <img src="/icon-128.png" width="16" height="16" alt="">
-          Translate
-        </button>
-        <button class="btn btn-post btn-sm" type="button" disabled aria-label="Post is unavailable in this demo">Post</button>
       </div>
     </div>
 
