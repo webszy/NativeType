@@ -1,5 +1,5 @@
 /* Peelmark visual tokens, reused for NativeType.
-   Background #f3f3f5, foreground #18181b, muted #6e6e77, primary #141416.
+   Background #fcfcfd, foreground #18181b, muted #6e6e77, primary #141416.
    Dot grid, 1120px measure, pill buttons, and the fade-up curve come from the template.
    Inter and Geist Mono are SIL OFL 1.1. See assets/fonts/NOTICE.txt. */
 
@@ -40,7 +40,7 @@
 }
 
 :root {
-  --background: #f3f3f5;
+  --background: #fcfcfd;
   --foreground: #18181b;
   --muted: #6e6e77;
   --nav: #4a4a52;
@@ -160,9 +160,9 @@ a {
   flex-direction: column;
   overflow-x: clip;
   background-color: var(--background);
-  background-image: radial-gradient(circle, #18182613 1px, #0000 1.3px);
+  background-image: radial-gradient(circle, rgba(24, 24, 27, 0.045) 0.6px, transparent 0.6px);
   background-position: top;
-  background-size: 24px 24px;
+  background-size: 28px 28px;
 }
 
 .site main {
@@ -210,7 +210,7 @@ a {
 }
 
 .header.is-scrolled {
-  background: rgb(243 243 245 / 0.88);
+  background: rgb(252 252 253 / 0.88);
   border-bottom-color: rgb(0 0 0 / 0.06);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);

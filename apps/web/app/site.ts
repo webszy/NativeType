@@ -1,13 +1,10 @@
-/** Public site links. Do not invent a Chrome Web Store URL. */
+/** Public site links. */
 
 export const githubUrl = 'https://github.com/webszy/NativeType'
+export const supportEmail = 'szyszylife@gmail.com'
 
-/**
- * Real Chrome Web Store listing URL.
- * Leave this empty until the listing is published. Install buttons stay
- * non-navigating while it is empty, and they must not point at GitHub.
- */
-export const chromeWebStoreUrl = ''
+/** Published Chrome Web Store listing. */
+export const chromeWebStoreUrl = 'https://chromewebstore.google.com/detail/nativetype/emicomnfbabkhcpphlihhbddhlmkdhfk?authuser=0&hl=en'
 
 export const makerLinks = [
   { label: 'webify.tools', href: 'https://webify.tools' },

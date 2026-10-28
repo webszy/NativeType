@@ -17,6 +17,7 @@
     "build:web": "pnpm --filter @nativetype/web build",
     "test:extension": "pnpm --filter @nativetype/extension test",
     "test:web": "pnpm --filter @nativetype/web test",
+    "test:web:built": "pnpm --filter @nativetype/web test:built",
     "typecheck": "pnpm --filter @nativetype/extension --filter @nativetype/contracts --filter @nativetype/web typecheck",
     "db:migrate:web:local": "pnpm --filter @nativetype/web db:migrate:local",
     "db:migrate:web:remote": "pnpm --filter @nativetype/web db:migrate:remote",

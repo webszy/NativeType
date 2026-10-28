@@ -11,6 +11,7 @@ pnpm dev:web
 pnpm test:web
 pnpm --filter @nativetype/web typecheck
 pnpm build:web
+pnpm test:web:built
 pnpm db:migrate:web:local
 ```
 
@@ -22,12 +23,14 @@ pnpm db:migrate:web:local
 | --- | --- |
 | `/` | Homepage |
 | `/privacy` | Privacy Policy, last updated October 27, 2026 |
-| `/support` | Support placeholder |
+| `/support` | Getting started, translation FAQs, GitHub Issues and email support |
 | `/changelog` | Changelog placeholder |
 
-Those four routes are prerendered. `/api/**` stays dynamic. The homepage is the product landing page. Support and changelog stay placeholders. The default layout sets `noindex, follow`. No canonical URL is configured.
+Those four routes are prerendered. `/api/**` stays dynamic. The homepage is the product landing page. Support contains a three-step getting-started guide, seven native FAQ accordions, and developer contact links. Changelog remains a placeholder. The default layout sets `noindex, follow`. No canonical URL is configured.
 
-`app/site.ts` holds the GitHub URL and `chromeWebStoreUrl`. The store field stays empty until a real Chrome Web Store listing URL exists. Install buttons do not fall back to GitHub.
+`app/site.ts` holds the GitHub URL and the published `chromeWebStoreUrl`. The homepage brand link and all Add to Chrome buttons use that same store URL.
+
+The production Worker entry in `worker/entry.ts` limits every request body to 1024 bytes before Nitro can buffer it. It checks both declared lengths and streamed bytes, returning 413 as soon as the limit is exceeded. Nitro still handles the site, API routes, and scheduled retention. `pnpm test:web:built` runs the actual build locally with isolated test bindings and verifies streaming limits, API responses, and the rendered store links; run it after `pnpm build:web`.
 
 ## API
 

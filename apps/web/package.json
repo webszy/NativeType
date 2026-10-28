@@ -11,6 +11,7 @@
     "typecheck": "nuxt typecheck && wrangler types test/worker-configuration.d.ts --config test/wrangler.jsonc --strict-vars false --include-runtime false --check && tsc --noEmit -p tsconfig.worker.json",
     "types": "wrangler types test/worker-configuration.d.ts --config test/wrangler.jsonc --strict-vars false --include-runtime false",
     "test": "vitest run && node --test test/config.test.mjs",
+    "test:built": "node --test test/built-worker.test.mjs",
     "postinstall": "nuxt prepare",
     "db:migrate:local": "wrangler d1 migrations apply nativetype-analytics --local",
     "db:migrate:remote": "node scripts/require-database-id.mjs wrangler d1 migrations apply nativetype-analytics --remote",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@cloudflare/vitest-plugin": "1.4.7",
     "@cloudflare/workers-types": "5.20261019.1",
+    "nitropack": "2.13.5",
     "typescript": "^5.9.3",
     "vitest": "4.1.12",
     "vue-tsc": "^3.3.13",

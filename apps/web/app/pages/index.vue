@@ -6,8 +6,6 @@ useSeoMeta({
   description: 'NativeType is a lightweight Chrome extension that lets you write in Chinese and translate directly inside X. Preview and replace text without switching tabs.',
 })
 
-const chromeWebStoreListingUrl = 'https://chromewebstore.google.com/detail/nativetype/emicomnfbabkhcpphlihhbddhlmkdhfk'
-
 const steps = [
   { number: '01', title: 'Write', text: 'Write in Chinese, naturally.' },
   { number: '02', title: 'Translate', text: 'Preview the English translation without leaving X.' },
@@ -27,7 +25,7 @@ const features = [
       <div class="wrap">
         <a
           class="hero-brand fade-up"
-          :href="chromeWebStoreListingUrl"
+          :href="chromeWebStoreUrl"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="NativeType on the Chrome Web Store"
@@ -46,7 +44,6 @@ const features = [
           <InstallButton />
           <a class="btn btn-secondary" :href="githubUrl" target="_blank" rel="noopener noreferrer">View on GitHub</a>
         </div>
-        <p v-if="!chromeWebStoreUrl" class="store-note">Chrome Web Store listing is not linked yet.</p>
       </div>
     </section>
 

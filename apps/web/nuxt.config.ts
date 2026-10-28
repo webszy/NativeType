@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -9,7 +11,7 @@ export default defineNuxtConfig({
       htmlAttrs: { lang: 'en' },
       title: 'NativeType',
       meta: [
-        { name: 'theme-color', content: '#f3f3f5' },
+        { name: 'theme-color', content: '#fcfcfd' },
       ],
       link: [
         { rel: 'icon', type: 'image/png', href: '/icon-128.png' },
@@ -34,6 +36,14 @@ export default defineNuxtConfig({
     cloudflare: {
       deployConfig: true,
       nodeCompat: true,
+    },
+    hooks: {
+      'rollup:before'(nitro, config) {
+        // Keep the dev/prerender entries; wrap only the production Worker.
+        if (nitro.options.preset === 'cloudflare-module') {
+          config.input = fileURLToPath(new URL('./worker/entry.ts', import.meta.url))
+        }
+      },
     },
     prerender: {
       crawlLinks: true,

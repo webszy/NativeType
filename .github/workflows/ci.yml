@@ -22,3 +22,4 @@ jobs:
       - run: pnpm test:web
       - run: pnpm build
       - run: pnpm build:web
+      - run: pnpm test:web:built
