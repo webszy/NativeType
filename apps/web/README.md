@@ -24,9 +24,11 @@ pnpm db:migrate:web:local
 | `/` | Homepage |
 | `/privacy` | Privacy Policy, last updated October 27, 2026 |
 | `/support` | Getting started, translation FAQs, GitHub Issues and email support |
-| `/changelog` | Changelog placeholder |
+| `/changelog` | Release notes |
 
-Those four routes are prerendered. `/api/**` stays dynamic. The homepage is the product landing page. Support contains a three-step getting-started guide, seven native FAQ accordions, and developer contact links. Changelog remains a placeholder. The default layout sets `noindex, follow`. No canonical URL is configured.
+Those four routes are prerendered. `/api/**` stays dynamic. The homepage is the product landing page. Support contains a three-step getting-started guide, seven native FAQ accordions, and developer contact links. The default layout sets `noindex, follow`; Changelog overrides this with `index, follow` when release notes exist.
+
+`app/composables/useSiteSeo.ts` supplies the shared SEO, Open Graph, and Twitter Card metadata. Public pages override the default title and description as needed. Canonical and OG page URLs use `https://typewith.si`, omit queries and fragments, and keep a trailing slash only for the homepage. All four pages use `public/og/nativetype-og.png` (1200 × 630 PNG), derived from the original `public/og-image.png`. Metadata is included in prerendered HTML and updates on client navigation. This configuration preserves each page's existing robots policy.
 
 `app/site.ts` holds the GitHub URL and the published `chromeWebStoreUrl`. The homepage brand link and all Add to Chrome buttons use that same store URL.
 

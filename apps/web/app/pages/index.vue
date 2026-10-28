@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { chromeWebStoreUrl, githubUrl } from '~/site'
 
-useSeoMeta({
-  title: 'NativeType — Write in Your Language. Publish in Another.',
-  description: 'NativeType is a lightweight Chrome extension that lets you write in Chinese and translate directly inside X. Preview and replace text without switching tabs.',
-})
+useSiteSeo()
 
 const steps = [
   { number: '01', title: 'Write', text: 'Write in Chinese, naturally.' },

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { githubUrl, supportEmail } from '~/site'
 
-useSeoMeta({
+useSiteSeo({
   title: 'Support & FAQ — NativeType',
-  description: 'Get help with NativeType. Find installation instructions, troubleshooting tips, translation FAQs, and ways to contact the developer.',
+  description: 'Get help with NativeType installation, translation previews, language settings, browser compatibility, and troubleshooting.',
 })
 
 const issuesUrl = `${githubUrl}/issues`

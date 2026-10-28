@@ -20,8 +20,7 @@ export default defineNuxtConfig({
     },
   },
 
-  // Pages set `noindex, follow` in the default layout.
-  // Do not set a production URL or canonical until the domain is confirmed.
+  // The default layout and changelog page control robots; useSiteSeo sets public-page metadata.
   // Hybrid Cloudflare Worker: prerender the site, and run /api/** on the Worker.
   routeRules: {
     '/': { prerender: true },

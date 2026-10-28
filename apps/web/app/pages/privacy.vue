@@ -3,9 +3,9 @@ import { githubUrl } from '~/site'
 
 const issuesUrl = `${githubUrl}/issues`
 
-useSeoMeta({
+useSiteSeo({
   title: 'Privacy Policy — NativeType',
-  description: 'NativeType keeps your writing on your device. Optional usage statistics are off by default and do not include drafts or translated text.',
+  description: 'Learn how NativeType processes translations locally and handles optional usage statistics, browser storage, and your privacy choices.',
 })
 </script>
 

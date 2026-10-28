@@ -28,9 +28,12 @@ function formatVersion(version: string): string {
   return version.startsWith('v') ? version : `v${version}`
 }
 
-useSeoMeta({
+useSiteSeo({
   title: 'Changelog — NativeType',
-  description: "Explore NativeType's latest updates, new features, improvements, and bug fixes.",
+  description: 'Explore NativeType release notes, new features, improvements, and bug fixes.',
+})
+
+useSeoMeta({
   robots: releases.length ? 'index, follow' : 'noindex, follow',
 }, { tagPriority: 'high' })
 </script>
