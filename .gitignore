@@ -36,3 +36,4 @@ store-assets/screenshots/.capture-*/
 *.njsproj
 *.sln
 *.sw?
+.playwright-cli
